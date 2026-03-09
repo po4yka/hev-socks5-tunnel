@@ -1,15 +1,24 @@
 // build.rs for differential tests
-// Compiles the C implementations as a static library for comparison testing
+// Compiles the C ring-buffer implementation for byte-exact comparison testing.
 
 fn main() {
-    // TODO: compile C ring buffer for differential testing
-    // let src_root = std::path::Path::new("../../src");
-    //
-    // cc::Build::new()
-    //     .file(src_root.join("misc/hev-ring-buffer.c"))
-    //     .include(src_root.join("misc"))
-    //     .compile("hev_c_ring_buffer");
+    let misc = std::path::Path::new("../../../src/misc");
 
-    // Placeholder: no C sources compiled yet
+    cc::Build::new()
+        .file(misc.join("hev-ring-buffer.c"))
+        .file("src/ring_buffer_wrapper.c")
+        .include(misc)
+        .warnings(false) // suppress C compiler warnings from upstream code
+        .compile("hev_c_ring_buffer");
+
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=src/ring_buffer_wrapper.c");
+    println!(
+        "cargo:rerun-if-changed={}",
+        misc.join("hev-ring-buffer.c").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        misc.join("hev-ring-buffer.h").display()
+    );
 }
