@@ -1,0 +1,80 @@
+name: Rust CI
+
+on:
+  push:
+    paths:
+      - 'rust/**'
+      - '.github/workflows/rust-ci.yml'
+  pull_request:
+    paths:
+      - 'rust/**'
+
+jobs:
+  check:
+    name: Check and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+
+      - name: cargo check
+        working-directory: rust
+        run: cargo check --workspace
+
+      - name: cargo clippy
+        working-directory: rust
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: cargo fmt check
+        working-directory: rust
+        run: cargo fmt --all -- --check
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('rust/Cargo.lock') }}
+
+      - name: cargo test
+        working-directory: rust
+        run: cargo test --workspace
+
+  c-tests:
+    name: C Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GCC
+        run: sudo apt-get install -y gcc
+
+      - name: Build and run C tests
+        run: make -C tests/c test
+
+      - name: Run C tests with sanitizers
+        run: make -C tests/c clean test SANITIZERS=1

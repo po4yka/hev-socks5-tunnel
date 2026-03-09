@@ -1,0 +1,10 @@
+/mnt/nvme/home/po4yka/hev-socks5-tunnel/rust/target/debug/deps/libfast_socks5-e184324e163f03a4.rmeta: /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/lib.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/client.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/server.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/mod.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/stream.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/target_addr.rs
+
+/mnt/nvme/home/po4yka/hev-socks5-tunnel/rust/target/debug/deps/fast_socks5-e184324e163f03a4.d: /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/lib.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/client.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/server.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/mod.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/stream.rs /home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/target_addr.rs
+
+/home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/lib.rs:
+/home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/client.rs:
+/home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/server.rs:
+/home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/mod.rs:
+/home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/stream.rs:
+/home/po4yka/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fast-socks5-0.9.6/src/util/target_addr.rs:
