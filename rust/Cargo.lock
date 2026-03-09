@@ -412,6 +412,7 @@ dependencies = [
 name = "hs5t-tunnel"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "nix",
  "thiserror 2.0.18",
  "wintun",

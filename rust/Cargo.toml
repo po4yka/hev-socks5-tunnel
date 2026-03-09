@@ -48,5 +48,8 @@ jni = "0.21"
 # Property-based testing
 proptest = "1"
 
+# C interop
+libc = "0.2"
+
 # Build utilities
 cc = "1"

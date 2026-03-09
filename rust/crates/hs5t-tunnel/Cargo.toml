@@ -7,6 +7,7 @@ description = "Platform TUN driver trait and implementations"
 [dependencies]
 thiserror = { workspace = true }
 nix = { workspace = true }
+libc = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 wintun = "0.4"
