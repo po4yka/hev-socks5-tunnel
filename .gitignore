@@ -3,3 +3,5 @@ build
 HevSocks5Tunnel.xcframework
 obj
 libs
+.ralph/
+rust/target/
