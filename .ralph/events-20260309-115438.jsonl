@@ -1,2 +1,0 @@
-{"ts":"2026-03-09T11:54:38.563102250+00:00","iteration":0,"hat":"loop","topic":"task.start","triggered":"planner","payload":"hello"}
-{"ts":"2026-03-09T11:54:39.196737993+00:00","iteration":1,"hat":"loop","topic":"loop.terminate","payload":"## Reason\nmax_iterations\n\n## Status\nStopped at iteration limit.\n\n## Summary\n- Iterations: 1\n- Duration: 0s\n- Exit code: 2"}

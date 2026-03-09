@@ -1,5 +1,0 @@
-{"timestamp":"2026-03-09T15:53:40.772469514+04:00","iteration":1,"hat":"loop","event":{"type":"iteration_started"}}
-{"timestamp":"2026-03-09T15:53:40.772519163+04:00","iteration":1,"hat":"loop","event":{"type":"hat_selected","hat":"ralph","reason":"process_output"}}
-{"timestamp":"2026-03-09T15:53:40.772599238+04:00","iteration":1,"hat":"jsonl","event":{"type":"event_published","topic":"task.start"}}
-{"timestamp":"2026-03-09T15:53:41.455735063+04:00","iteration":2,"hat":"loop","event":{"type":"iteration_started"}}
-{"timestamp":"2026-03-09T15:53:41.455765527+04:00","iteration":2,"hat":"loop","event":{"type":"hat_selected","hat":"ralph","reason":"process_output"}}

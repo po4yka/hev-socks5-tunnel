@@ -1,2 +1,0 @@
-{"ts":"2026-03-09T11:52:42.876983881+00:00","iteration":0,"hat":"loop","topic":"task.start","triggered":"planner","payload":"Say hello. Output LOOP_COMPLETE when done."}
-{"ts":"2026-03-09T11:52:44.225647831+00:00","iteration":2,"hat":"loop","topic":"loop.terminate","payload":"## Reason\nmax_iterations\n\n## Status\nStopped at iteration limit.\n\n## Summary\n- Iterations: 2\n- Duration: 1s\n- Exit code: 2"}

@@ -1,2 +1,0 @@
-{"ts":"2026-03-09T11:51:38.956498340+00:00","iteration":0,"hat":"loop","topic":"research.start","triggered":"planner","payload":"Test connection. Write LOOP_COMPLETE when done."}
-{"ts":"2026-03-09T11:51:40.265947022+00:00","iteration":2,"hat":"loop","topic":"loop.terminate","payload":"## Reason\nmax_iterations\n\n## Status\nStopped at iteration limit.\n\n## Summary\n- Iterations: 2\n- Duration: 1s\n- Exit code: 2"}
