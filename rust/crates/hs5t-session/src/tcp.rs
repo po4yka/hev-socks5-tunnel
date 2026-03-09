@@ -1,5 +1,49 @@
 use std::io;
+use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::net::TcpStream;
+use tokio_util::sync::CancellationToken;
+
+use crate::socks5::{Auth, TargetAddr};
+
+/// High-level TCP session: connect to SOCKS5 proxy, perform handshake,
+/// issue CONNECT to the target, then bidirectionally relay bytes until
+/// one side closes or `cancel` is signalled.
+pub struct TcpSession {
+    proxy_addr: SocketAddr,
+    auth: Auth,
+    target: TargetAddr,
+}
+
+impl TcpSession {
+    pub fn new(proxy_addr: SocketAddr, auth: Auth, target: TargetAddr) -> Self {
+        Self {
+            proxy_addr,
+            auth,
+            target,
+        }
+    }
+
+    /// Run the session to completion.
+    ///
+    /// - Connects to the SOCKS5 proxy at `proxy_addr`.
+    /// - Performs SOCKS5 handshake (method negotiation + optional auth).
+    /// - Issues a SOCKS5 CONNECT request to `target`.
+    /// - Bidirectionally splices `local` ↔ proxy until EOF on both sides or
+    ///   until `cancel` is signalled (in which case the function returns `Ok(())`).
+    pub async fn run<L>(&self, local: &mut L, cancel: CancellationToken) -> io::Result<()>
+    where
+        L: AsyncRead + AsyncWrite + Unpin,
+    {
+        let mut proxy = TcpStream::connect(self.proxy_addr).await?;
+        crate::socks5::handshake(&mut proxy, &self.auth).await?;
+        crate::socks5::connect(&mut proxy, &self.target).await?;
+        tokio::select! {
+            result = splice(local, &mut proxy) => result.map(|_| ()),
+            _ = cancel.cancelled() => Ok(()),
+        }
+    }
+}
 
 /// Bidirectionally splice bytes between `local` and `proxy` until both sides close.
 ///
