@@ -1,5 +1,95 @@
 use std::io;
+use std::net::SocketAddr;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+/// Destination address for a SOCKS5 CONNECT or UDP ASSOCIATE request.
+#[derive(Debug, Clone)]
+pub enum TargetAddr {
+    /// IPv4 or IPv6 socket address.
+    Ip(SocketAddr),
+    /// Fully-qualified domain name and port.
+    Domain(String, u16),
+}
+
+/// Send a SOCKS5 CONNECT request and read the server reply.
+///
+/// The stream MUST have completed a successful [`handshake`] before calling
+/// this function.  On success the stream is in the data-forwarding phase.
+///
+/// Wire formats sent:
+/// - IPv4:   `[0x05, 0x01, 0x00, 0x01, a, b, c, d, ph, pl]`
+/// - IPv6:   `[0x05, 0x01, 0x00, 0x04, <16 bytes>, ph, pl]`
+/// - Domain: `[0x05, 0x01, 0x00, 0x03, len, <domain bytes>, ph, pl]`
+pub async fn connect<S>(stream: &mut S, target: &TargetAddr) -> io::Result<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    // Build CONNECT request: VER=5, CMD=1(CONNECT), RSV=0, ATYP, addr, port
+    let mut req = vec![0x05u8, 0x01, 0x00];
+
+    match target {
+        TargetAddr::Ip(addr) => match addr {
+            std::net::SocketAddr::V4(v4) => {
+                req.push(0x01);
+                req.extend_from_slice(&v4.ip().octets());
+                req.extend_from_slice(&v4.port().to_be_bytes());
+            }
+            std::net::SocketAddr::V6(v6) => {
+                req.push(0x04);
+                req.extend_from_slice(&v6.ip().octets());
+                req.extend_from_slice(&v6.port().to_be_bytes());
+            }
+        },
+        TargetAddr::Domain(domain, port) => {
+            req.push(0x03);
+            req.push(domain.len() as u8);
+            req.extend_from_slice(domain.as_bytes());
+            req.extend_from_slice(&port.to_be_bytes());
+        }
+    }
+
+    stream.write_all(&req).await?;
+
+    // Read reply header: [VER, REP, RSV, ATYP]
+    let mut header = [0u8; 4];
+    stream.read_exact(&mut header).await?;
+
+    let rep = header[1];
+    let atyp = header[3];
+
+    // Consume bind address and port from reply
+    match atyp {
+        0x01 => {
+            let mut buf = [0u8; 6]; // 4-byte IPv4 + 2-byte port
+            stream.read_exact(&mut buf).await?;
+        }
+        0x04 => {
+            let mut buf = [0u8; 18]; // 16-byte IPv6 + 2-byte port
+            stream.read_exact(&mut buf).await?;
+        }
+        0x03 => {
+            let mut len_buf = [0u8; 1];
+            stream.read_exact(&mut len_buf).await?;
+            let mut buf = vec![0u8; len_buf[0] as usize + 2]; // domain + 2-byte port
+            stream.read_exact(&mut buf).await?;
+        }
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "SOCKS5: unknown address type in CONNECT reply",
+            ));
+        }
+    }
+
+    if rep != 0x00 {
+        return Err(io::Error::new(
+            io::ErrorKind::ConnectionRefused,
+            format!("SOCKS5: CONNECT failed with REP={rep:#04x}"),
+        ));
+    }
+
+    Ok(())
+}
 
 /// Authentication method for SOCKS5 handshake.
 #[derive(Debug, Clone)]
@@ -163,5 +253,110 @@ mod tests {
         };
         let result = handshake(&mut mock, &auth).await;
         assert!(result.is_err(), "expected error when server rejects credentials");
+    }
+
+    // -------------------------------------------------------------------------
+    // CONNECT request format — RED tests (task-1773069665-4e59)
+    // -------------------------------------------------------------------------
+
+    /// Minimal server CONNECT reply: [VER=5, REP=0, RSV=0, ATYP=1, 0,0,0,0, 0,0]
+    /// (IPv4 bind addr 0.0.0.0:0 — valid per RFC 1928 §6)
+    const CONNECT_REPLY_IPV4: &[u8] = &[0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0];
+
+    /// CONNECT to 127.0.0.1:8080 via IPv4.
+    ///
+    /// Expected wire bytes: [0x05, 0x01, 0x00, 0x01, 127, 0, 0, 1, 0x1F, 0x90]
+    ///   VER=5, CMD=1(CONNECT), RSV=0, ATYP=1(IPv4), addr, port=8080(big-endian)
+    #[tokio::test]
+    async fn connect_ipv4_sends_correct_bytes() {
+        use std::net::{Ipv4Addr, SocketAddrV4};
+
+        let port: u16 = 8080;
+        let [ph, pl] = port.to_be_bytes();
+        let expected = [0x05u8, 0x01, 0x00, 0x01, 127, 0, 0, 1, ph, pl];
+
+        let mut mock = Builder::new()
+            .write(&expected)
+            .read(CONNECT_REPLY_IPV4)
+            .build();
+
+        let addr = TargetAddr::Ip(SocketAddr::V4(SocketAddrV4::new(
+            Ipv4Addr::new(127, 0, 0, 1),
+            port,
+        )));
+        connect(&mut mock, &addr).await.unwrap();
+    }
+
+    /// CONNECT to [::1]:443 via IPv6.
+    ///
+    /// Expected wire bytes: [0x05, 0x01, 0x00, 0x04, <16 bytes of ::1>, 0x01, 0xBB]
+    #[tokio::test]
+    async fn connect_ipv6_sends_correct_bytes() {
+        use std::net::{Ipv6Addr, SocketAddrV6};
+
+        let ip = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1); // ::1
+        let port: u16 = 443;
+        let [ph, pl] = port.to_be_bytes();
+
+        let mut expected = vec![0x05u8, 0x01, 0x00, 0x04];
+        expected.extend_from_slice(&ip.octets());
+        expected.push(ph);
+        expected.push(pl);
+
+        let mut mock = Builder::new()
+            .write(&expected)
+            .read(CONNECT_REPLY_IPV4)
+            .build();
+
+        let addr = TargetAddr::Ip(SocketAddr::V6(SocketAddrV6::new(ip, port, 0, 0)));
+        connect(&mut mock, &addr).await.unwrap();
+    }
+
+    /// CONNECT to "example.com":80 via domain name (ATYP=3).
+    ///
+    /// Expected wire bytes:
+    ///   [0x05, 0x01, 0x00, 0x03, 11, b'e','x','a','m','p','l','e','.','c','o','m', 0x00, 0x50]
+    #[tokio::test]
+    async fn connect_domain_sends_correct_bytes() {
+        let domain = "example.com";
+        let port: u16 = 80;
+        let [ph, pl] = port.to_be_bytes();
+
+        let mut expected = vec![0x05u8, 0x01, 0x00, 0x03, domain.len() as u8];
+        expected.extend_from_slice(domain.as_bytes());
+        expected.push(ph);
+        expected.push(pl);
+
+        let mut mock = Builder::new()
+            .write(&expected)
+            .read(CONNECT_REPLY_IPV4)
+            .build();
+
+        let addr = TargetAddr::Domain(domain.to_string(), port);
+        connect(&mut mock, &addr).await.unwrap();
+    }
+
+    /// Server replying with REP != 0x00 must return an error.
+    ///
+    /// REP=0x05 means "Connection refused".
+    #[tokio::test]
+    async fn connect_server_error_returns_err() {
+        use std::net::{Ipv4Addr, SocketAddrV4};
+
+        let port: u16 = 22;
+        let [ph, pl] = port.to_be_bytes();
+        let request = [0x05u8, 0x01, 0x00, 0x01, 10, 0, 0, 1, ph, pl];
+
+        // Server returns REP=5 (connection refused) + minimal bind addr
+        let reply = [0x05u8, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0];
+
+        let mut mock = Builder::new().write(&request).read(&reply).build();
+
+        let addr = TargetAddr::Ip(SocketAddr::V4(SocketAddrV4::new(
+            Ipv4Addr::new(10, 0, 0, 1),
+            port,
+        )));
+        let result = connect(&mut mock, &addr).await;
+        assert!(result.is_err(), "expected error for non-zero REP");
     }
 }
