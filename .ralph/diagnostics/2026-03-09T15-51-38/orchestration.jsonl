@@ -1,0 +1,5 @@
+{"timestamp":"2026-03-09T15:51:39.657975582+04:00","iteration":1,"hat":"loop","event":{"type":"iteration_started"}}
+{"timestamp":"2026-03-09T15:51:39.658014823+04:00","iteration":1,"hat":"loop","event":{"type":"hat_selected","hat":"ralph","reason":"process_output"}}
+{"timestamp":"2026-03-09T15:51:39.658079213+04:00","iteration":1,"hat":"jsonl","event":{"type":"event_published","topic":"research.start"}}
+{"timestamp":"2026-03-09T15:51:40.265810983+04:00","iteration":2,"hat":"loop","event":{"type":"iteration_started"}}
+{"timestamp":"2026-03-09T15:51:40.265871169+04:00","iteration":2,"hat":"loop","event":{"type":"hat_selected","hat":"ralph","reason":"process_output"}}

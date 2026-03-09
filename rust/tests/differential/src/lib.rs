@@ -1,4 +1,10 @@
-// Differential test harness: C (hev-ring-buffer.c) vs Rust (hs5t-ring-buffer).
+// Differential test harness: C (hev-ring-buffer.c) vs Rust (hs5t-ring-buffer),
+// and C (dns_shim.c) vs Rust (hs5t-dns-cache).
+
+pub mod dns_shim_ffi;
+mod dns_shim_smoke;
+
+
 //
 // Generates random sequences of write / read operations and asserts that both
 // implementations produce bit-identical output at every step.

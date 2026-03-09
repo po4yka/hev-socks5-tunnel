@@ -1,0 +1,2 @@
+{"ts":"2026-03-09T11:52:13.031798176+00:00","iteration":0,"hat":"loop","topic":"task.start","triggered":"planner","payload":"Echo 'hello world'. Write LOOP_COMPLETE when done."}
+{"ts":"2026-03-09T11:52:14.885238528+00:00","iteration":3,"hat":"loop","topic":"loop.terminate","payload":"## Reason\nmax_iterations\n\n## Status\nStopped at iteration limit.\n\n## Summary\n- Iterations: 3\n- Duration: 1s\n- Exit code: 2"}

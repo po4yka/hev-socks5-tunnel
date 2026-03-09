@@ -1,0 +1,26 @@
+[2m2026-03-09T13:09:16.882538Z[0m [33m WARN[0m [2mralph::loop_runner[0m[2m:[0m Interactive mode requested but stdout is not a TTY, falling back to autonomous
+[2m2026-03-09T13:09:16.883125Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Memory injection check: enabled=true, inject=Auto, workspace_root="/mnt/nvme/home/po4yka/hev-socks5-tunnel"
+[2m2026-03-09T13:09:16.883149Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Looking for memories at: "/mnt/nvme/home/po4yka/hev-socks5-tunnel/.ralph/agent/memories.md" (exists: true)
+[2m2026-03-09T13:09:16.884205Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Successfully loaded 1 memories from store
+[2m2026-03-09T13:09:16.884217Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
+[2m2026-03-09T13:09:16.884293Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (4 ready, 7 open, 6 closed) into prompt
+[2m2026-03-09T13:14:14.981211Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Memory injection check: enabled=true, inject=Auto, workspace_root="/mnt/nvme/home/po4yka/hev-socks5-tunnel"
+[2m2026-03-09T13:14:14.981263Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Looking for memories at: "/mnt/nvme/home/po4yka/hev-socks5-tunnel/.ralph/agent/memories.md" (exists: true)
+[2m2026-03-09T13:14:14.981348Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Successfully loaded 1 memories from store
+[2m2026-03-09T13:14:14.981359Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
+[2m2026-03-09T13:14:14.981399Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting scratchpad (1861 chars) into prompt
+[2m2026-03-09T13:14:14.981480Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (5 ready, 12 open, 6 closed) into prompt
+[2m2026-03-09T13:16:10.062264Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Memory injection check: enabled=true, inject=Auto, workspace_root="/mnt/nvme/home/po4yka/hev-socks5-tunnel"
+[2m2026-03-09T13:16:10.062299Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Looking for memories at: "/mnt/nvme/home/po4yka/hev-socks5-tunnel/.ralph/agent/memories.md" (exists: true)
+[2m2026-03-09T13:16:10.062366Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Successfully loaded 1 memories from store
+[2m2026-03-09T13:16:10.062375Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
+[2m2026-03-09T13:16:10.062412Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting scratchpad (1861 chars) into prompt
+[2m2026-03-09T13:16:10.062485Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (6 ready, 11 open, 7 closed) into prompt
+[2m2026-03-09T13:31:11.499015Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Memory injection check: enabled=true, inject=Auto, workspace_root="/mnt/nvme/home/po4yka/hev-socks5-tunnel"
+[2m2026-03-09T13:31:11.499050Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Looking for memories at: "/mnt/nvme/home/po4yka/hev-socks5-tunnel/.ralph/agent/memories.md" (exists: true)
+[2m2026-03-09T13:31:11.499117Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Successfully loaded 1 memories from store
+[2m2026-03-09T13:31:11.499125Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
+[2m2026-03-09T13:31:11.499146Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting scratchpad (1861 chars) into prompt
+[2m2026-03-09T13:31:11.499220Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (6 ready, 10 open, 8 closed) into prompt
+[2m2026-03-09T13:35:31.330055Z[0m [33m WARN[0m [2mralph_core::event_loop[0m[2m:[0m Stale loop detected: same topic emitted consecutively [3mtopic[0m[2m=[0m"task.complete" [3mcount[0m[2m=[0m3
+[2m2026-03-09T13:35:31.330406Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Wrapping up: loop_stale. 4 iterations in 26m 14s. [3mreason[0m[2m=[0mloop_stale [3miterations[0m[2m=[0m4 [3mduration[0m[2m=[0m26m 14s
