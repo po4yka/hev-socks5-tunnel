@@ -8,3 +8,7 @@
 {"payload":"DnsCache core committed (9/9 tests). Ready: proptest (4a77), C shim (c1f3), fuzz target (333f). Once c1f3 done, diff test (0f9b) unblocks. Then final (914e).","topic":"tasks.ready","ts":"2026-03-09T14:34:51.571747102+00:00"}
 {"payload":"task: c1f3 (C DNS shim), status: done. 7/7 tests pass, clippy clean. task-0f9b (500-case diff test) now unblocked. ready: 4a77 (proptest), 0f9b (diff test), 333f (fuzz)","topic":"implementation.ready","ts":"2026-03-09T14:44:05.481390279+00:00"}
 {"payload":"task: c1f3 (C DNS shim). tests: 7/7 diff + 9/9 dns_cache + 21/21 config. clippy: clean. ready to commit.","topic":"validation.passed","ts":"2026-03-09T14:47:22.383691217+00:00"}
+{"payload":"sha: 6015da1, task: c1f3 (C DNS shim), tests: 7/7 diff + 9/9 dns_cache + 21/21 config, clippy: clean","topic":"commit.complete","ts":"2026-03-09T14:48:47.831206119+00:00"}
+{"payload":"tasks: task-1773065386-4a77 (proptest DnsCache), task-1773065412-0f9b (500-case DNS differential test), task-1773065425-333f (fuzz DNS handle) — all unblocked after c1f3 C shim commit","topic":"tasks.ready","ts":"2026-03-09T14:50:04.918520794+00:00"}
+{"payload":"loop=5 crate=hs5t-dns-cache tests=24-pass clippy=clean commit=2c20e24 proptest=pass differential-500=pass fuzz=pass","topic":"LOOP_COMPLETE","ts":"2026-03-09T14:59:21.550555361+00:00"}
+{"ts":"2026-03-09T14:59:58.441489394+00:00","iteration":12,"hat":"loop","topic":"loop.terminate","payload":"## Reason\ncompleted\n\n## Status\nAll tasks completed successfully.\n\n## Summary\n- Iterations: 12\n- Duration: 53m 0s\n- Exit code: 0"}

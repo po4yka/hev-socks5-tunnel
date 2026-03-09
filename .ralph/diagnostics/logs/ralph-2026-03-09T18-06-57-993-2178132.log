@@ -58,3 +58,22 @@
 [2m2026-03-09T14:47:49.853909Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
 [2m2026-03-09T14:47:49.853931Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting scratchpad (6549 chars) into prompt
 [2m2026-03-09T14:47:49.854024Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (8 ready, 12 open, 14 closed) into prompt
+[2m2026-03-09T14:49:15.729606Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Memory injection check: enabled=true, inject=Auto, workspace_root="/mnt/nvme/home/po4yka/hev-socks5-tunnel"
+[2m2026-03-09T14:49:15.729642Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Looking for memories at: "/mnt/nvme/home/po4yka/hev-socks5-tunnel/.ralph/agent/memories.md" (exists: true)
+[2m2026-03-09T14:49:15.729709Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Successfully loaded 1 memories from store
+[2m2026-03-09T14:49:15.729718Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
+[2m2026-03-09T14:49:15.729741Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting scratchpad (6549 chars) into prompt
+[2m2026-03-09T14:49:15.729832Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (8 ready, 12 open, 14 closed) into prompt
+[2m2026-03-09T14:50:35.688596Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Memory injection check: enabled=true, inject=Auto, workspace_root="/mnt/nvme/home/po4yka/hev-socks5-tunnel"
+[2m2026-03-09T14:50:35.688647Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Looking for memories at: "/mnt/nvme/home/po4yka/hev-socks5-tunnel/.ralph/agent/memories.md" (exists: true)
+[2m2026-03-09T14:50:35.688749Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Successfully loaded 1 memories from store
+[2m2026-03-09T14:50:35.688764Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting 1 memories (404 chars) into prompt
+[2m2026-03-09T14:50:35.689010Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting scratchpad (7209 chars) into prompt
+[2m2026-03-09T14:50:35.689256Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Injecting ready tasks (8 ready, 12 open, 14 closed) into prompt
+[2m2026-03-09T14:59:58.441247Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Completion event detected in JSONL [3mtopic[0m[2m=[0mLOOP_COMPLETE
+[2m2026-03-09T14:59:58.441442Z[0m [33m WARN[0m [2mralph_core::event_loop[0m[2m:[0m Completion event with 8 open task(s) - trusting agent decision [3mopen_tasks[0m[2m=[0m["task-1773058452-61c2: Verify ASAN clean on hs5t-ring-buffer (nightly)", "task-1773058456-786a: Write hs5t-logger unit tests (RED phase)", "task-1773058459-f744: Implement hs5t-logger (GREEN phase)", "task-1773058463-0806: Final: clippy -D warnings clean, commit, write LOOP_COMPLETE", "task-1773060423-33ef: Write differential test: C vs Rust config parsing", "task-1773060431-7db8: Write fuzz target for config parser", "task-1773060437-cc14: Final: clippy -D warnings clean, commit, LOOP_COMPLETE", "task-1773062015-f9bf: Final: run Linux tests + unsafe grep check + clippy + commit + LOOP_COMPLETE"]
+[2m2026-03-09T14:59:58.441461Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Completion event detected - terminating
+[2m2026-03-09T14:59:58.441468Z[0m [32m INFO[0m [2mralph::loop_runner[0m[2m:[0m Completion event LOOP_COMPLETE detected.
+[2m2026-03-09T14:59:58.441483Z[0m [32m INFO[0m [2mralph_core::event_loop[0m[2m:[0m Wrapping up: completed. 12 iterations in 53m 0s. [3mreason[0m[2m=[0mcompleted [3miterations[0m[2m=[0m12 [3mduration[0m[2m=[0m53m 0s
+[2m2026-03-09T14:59:58.443383Z[0m [32m INFO[0m [2mralph_core::landing[0m[2m:[0m Beginning landing sequence [3mloop_id[0m[2m=[0mprimary
+[2m2026-03-09T14:59:58.443471Z[0m [33m WARN[0m [2mralph_core::landing[0m[2m:[0m Landing with 8 open tasks [3mloop_id[0m[2m=[0mprimary [3mopen_tasks[0m[2m=[0m["task-1773058452-61c2", "task-1773058456-786a", "task-1773058459-f744", "task-1773058463-0806", "task-1773060423-33ef", "task-1773060431-7db8", "task-1773060437-cc14", "task-1773062015-f9bf"]

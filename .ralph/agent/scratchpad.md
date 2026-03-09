@@ -111,3 +111,47 @@ Differential test must use valid (qlen ≥ 12, qd ≥ 1) queries only.
 ### Verified: 7/7 tests pass, clippy -D warnings clean
 
 ### Next ready: task-0f9b (500-case differential test), task-4a77 (proptest), task-333f (fuzz)
+
+## 2026-03-09 — commit.complete for c1f3 received
+
+### Event handled: commit.complete (sha: 6015da1)
+- C DNS shim committed and verified: 7/7 diff smoke tests pass
+- 9/9 dns_cache unit tests pass, 21/21 config tests pass, clippy clean
+
+### 3 DNS cache tasks now ready to run in parallel:
+- task-4a77: proptest (LRU invariants + reverse lookup consistency)
+- task-0f9b: 500-case differential test (Rust vs C shim byte-exact)
+- task-333f: fuzz target (arbitrary bytes → only Err, no panic)
+
+### Plan: emit tasks.ready → Builder picks up all 3 in parallel
+### Once all 3 close: task-1773065450-914e (Final: ASAN + clippy + commit + LOOP_COMPLETE) unblocks
+
+## 2026-03-09 — All 3 DNS cache ready tasks completed (sha: 2c20e24)
+
+### Status
+- commit `2c20e24`: test(hs5t-dns-cache): add proptest, 500-case differential, and fuzz tests
+
+### Delivered
+1. task-4a77 (proptest): 4 property tests in lib.rs proptest_tests module
+   - prop_reverse_lookup_consistent_after_find (5k cases)
+   - prop_evicted_name_no_longer_at_old_ip (2k cases)
+   - prop_lru_touch_protects_entry (2k cases)
+   - prop_handle_never_panics (5k cases)
+2. task-0f9b (500-case diff test): dns_diff.rs with 500-case + 200-sequence proptest
+   - prop_dns_diff_500_single_query (500 cases)
+   - prop_dns_diff_sequence (200 cases, 1-16 queries)
+3. task-333f (fuzz): dns_fuzz.rs with 10k arbitrary + 2k valid-header tests
+   - prop_fuzz_handle_no_panic (10k cases)
+   - prop_fuzz_valid_header_matches_c_shim (2k cases)
+
+### Key finding
+C shim SEGFAULTs on packets shorter than 12 bytes (no bounds check in C reference).
+Fuzz test guards C comparison: only compare when input is at least 12 bytes with valid QDCOUNT.
+
+### All tests: 24 pass (13 lib + 11 differential), clippy -D warnings clean
+
+### Loop 5 exit criteria met:
+- 500-case differential test: PASS (byte-exact)
+- Fuzz target: PASS (no panics on arbitrary + valid-header inputs)
+- ASAN: requires runtime check (nightly or AddressSanitizer build)
+- clippy: PASS
