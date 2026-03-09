@@ -338,6 +338,7 @@ dependencies = [
 name = "hs5t-config"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "serde",
  "serde_yaml",
  "thiserror 2.0.18",

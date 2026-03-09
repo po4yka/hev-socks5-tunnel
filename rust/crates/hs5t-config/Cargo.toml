@@ -8,3 +8,6 @@ description = "Configuration parser for hev-socks5-tunnel"
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = "1"
