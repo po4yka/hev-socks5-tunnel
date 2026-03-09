@@ -3,6 +3,8 @@
 
 pub mod dns_shim_ffi;
 mod dns_shim_smoke;
+mod dns_diff;
+mod dns_fuzz;
 
 
 //

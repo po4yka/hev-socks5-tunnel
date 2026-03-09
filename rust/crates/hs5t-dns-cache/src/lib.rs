@@ -537,3 +537,170 @@ mod tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Property-based tests (proptest)
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod proptest_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    const NET: u32 = 0x0a_00_00_00;
+    const MASK: u32 = 0xff_ff_ff_00;
+    const MAX: usize = 8;
+
+    /// Generate a valid label token (1-8 alphanumeric bytes).
+    fn arb_label() -> impl Strategy<Value = String> {
+        prop::string::string_regex("[a-z]{1,8}").unwrap()
+    }
+
+    /// Generate a valid FQDN: 1-3 labels joined with '.'.
+    fn arb_name() -> impl Strategy<Value = String> {
+        prop::collection::vec(arb_label(), 1usize..=3)
+            .prop_map(|labels| labels.join("."))
+    }
+
+    /// Generate a sequence of 1-30 names (duplicates allowed for LRU-touch
+    /// semantics; distinct pool is bounded so cache saturation is exercised).
+    fn arb_names(max_ops: usize, pool: usize) -> impl Strategy<Value = Vec<String>> {
+        prop::collection::vec(arb_label(), 1usize..=pool)
+            .prop_flat_map(move |pool_names| {
+                let pool_names = std::sync::Arc::new(pool_names);
+                prop::collection::vec(
+                    (0usize..pool_names.len()).prop_map(move |i| pool_names[i].clone()),
+                    1..=max_ops,
+                )
+            })
+    }
+
+    // -----------------------------------------------------------------------
+    // Property 1: Reverse-lookup consistency
+    //
+    // Invariant: immediately after find(name) returns Some(ip),
+    // lookup(ip) must return Some(name).
+    // -----------------------------------------------------------------------
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
+
+        #[test]
+        fn prop_reverse_lookup_consistent_after_find(
+            names in arb_names(40, MAX + 4),
+        ) {
+            let mut cache = DnsCache::new(NET, MASK, MAX);
+            for name in &names {
+                if let Some(ip) = cache.find(name) {
+                    let looked_up = cache.lookup(ip);
+                    prop_assert_eq!(
+                        looked_up,
+                        Some(name.as_str()),
+                        "reverse lookup failed: name={} ip={:#010x}",
+                        name,
+                        ip
+                    );
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Property 2: No stale reverse entries after eviction
+    //
+    // After inserting MAX+1 distinct names, the first name inserted must no
+    // longer be present as the value at its original IP (the slot was reused).
+    // -----------------------------------------------------------------------
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2_000))]
+
+        #[test]
+        fn prop_evicted_name_no_longer_at_old_ip(
+            names in prop::collection::vec(arb_name(), (MAX + 1)..=(MAX + 1)),
+        ) {
+            // Only proceed if all MAX+1 names are distinct.
+            let distinct: std::collections::HashSet<_> = names.iter().collect();
+            prop_assume!(distinct.len() == MAX + 1);
+
+            let mut cache = DnsCache::new(NET, MASK, MAX);
+
+            // Insert first MAX names; record the first name's IP.
+            let mut first_ip = 0u32;
+            for (i, name) in names[..MAX].iter().enumerate() {
+                let ip = cache.find(name).expect("find must succeed");
+                if i == 0 {
+                    first_ip = ip;
+                }
+            }
+
+            // Insert the (MAX+1)th name, which must evict name[0] (LRU).
+            cache.find(&names[MAX]).expect("find must succeed");
+
+            // name[0] must no longer be the value at its old IP.
+            let at_old_slot = cache.lookup(first_ip);
+            prop_assert!(
+                at_old_slot != Some(names[0].as_str()),
+                "evicted name '{}' still present at old IP {:#010x}",
+                names[0],
+                first_ip,
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Property 3: LRU touch prevents eviction
+    //
+    // If name[0] is accessed again before name[1], then when the cache is
+    // full and a new name arrives, name[1] (the new LRU) is evicted instead
+    // of name[0].
+    // -----------------------------------------------------------------------
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2_000))]
+
+        #[test]
+        fn prop_lru_touch_protects_entry(
+            names in prop::collection::vec(arb_name(), (MAX + 1)..=(MAX + 1)),
+        ) {
+            // Need at least 3 distinct names.
+            let distinct: std::collections::HashSet<_> = names.iter().collect();
+            prop_assume!(distinct.len() == MAX + 1);
+
+            let mut cache = DnsCache::new(NET, MASK, MAX);
+
+            // Insert MAX names in order: name[0] is LRU, name[MAX-1] is MRU.
+            for name in &names[..MAX] {
+                cache.find(name).expect("find must succeed");
+            }
+
+            // Touch name[0] — promotes it to MRU.  name[1] becomes LRU.
+            let ip0 = cache.find(&names[0]).expect("re-find must succeed");
+
+            // Insert the (MAX+1)th distinct name → evicts name[1] (new LRU).
+            cache.find(&names[MAX]).expect("find must succeed");
+
+            // name[0] must still be accessible at ip0.
+            let looked_up = cache.lookup(ip0);
+            prop_assert_eq!(
+                looked_up,
+                Some(names[0].as_str()),
+                "name[0] '{}' must survive eviction after LRU touch",
+                names[0],
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Property 4: handle() never panics; either returns Ok or a known Err.
+    // -----------------------------------------------------------------------
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
+
+        #[test]
+        fn prop_handle_never_panics(
+            mut req in prop::collection::vec(any::<u8>(), 0usize..=256),
+        ) {
+            let mut cache = DnsCache::new(NET, MASK, MAX);
+            let mut res = vec![0u8; 512];
+            // Must not panic; return value may be Ok or any Err variant.
+            let _ = cache.handle(&mut req, &mut res);
+        }
+    }
+}
