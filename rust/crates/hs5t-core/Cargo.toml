@@ -19,3 +19,8 @@ tokio-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
+libc = { workspace = true }
+once_cell = "1"
+
+[build-dependencies]
+cbindgen = "0.27"

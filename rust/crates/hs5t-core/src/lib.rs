@@ -3,12 +3,17 @@ pub mod device;
 pub mod io_loop;
 pub mod sessions;
 pub mod stats;
+pub mod tunnel_api;
+
+#[cfg(feature = "c-api")]
+pub mod c_api;
 
 pub use classify::{classify_ip_packet, IpClass};
 pub use device::TunDevice;
 pub use io_loop::io_loop_task;
 pub use sessions::{ActiveSessions, SessionEntry};
 pub use stats::Stats;
+pub use tunnel_api::run_tunnel;
 
 #[cfg(test)]
 mod tests {
