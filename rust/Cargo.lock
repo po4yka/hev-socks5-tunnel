@@ -329,7 +329,9 @@ dependencies = [
  "anyhow",
  "hs5t-config",
  "hs5t-core",
+ "libc",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]
