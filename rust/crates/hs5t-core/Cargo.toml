@@ -4,9 +4,6 @@ version = "0.1.0"
 edition = "2021"
 description = "Core tunnel event loop (smoltcp + tokio)"
 
-[features]
-c-api = []
-
 [dependencies]
 hs5t-config = { path = "../hs5t-config" }
 hs5t-logger = { path = "../hs5t-logger" }
@@ -20,7 +17,3 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
 libc = { workspace = true }
-once_cell = "1"
-
-[build-dependencies]
-cbindgen = "0.27"

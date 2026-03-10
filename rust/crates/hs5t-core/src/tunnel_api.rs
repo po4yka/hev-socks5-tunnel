@@ -1,4 +1,4 @@
-//! High-level blocking tunnel API consumed by the C FFI and JNI layers.
+//! High-level blocking tunnel API consumed by the Rust CLI and JNI layer.
 //!
 //! Callers supply a raw TUN file descriptor (already opened and owned by the
 //! platform — e.g. Android VPN service) and a parsed `Config`.  This module

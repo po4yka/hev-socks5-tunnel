@@ -6,9 +6,9 @@ use std::sync::Mutex;
 use std::time::SystemTime;
 
 use tracing::Level;
+use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
-use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::EnvFilter;
 
 /// Log output destination.
@@ -54,7 +54,14 @@ fn epoch_to_datetime(secs: u64) -> (i32, u32, u32, u32, u32, u32) {
     let mi = (tod % 3_600) / 60;
     let s = tod % 60;
 
-    (year as i32, mo as u32, d as u32, h as u32, mi as u32, s as u32)
+    (
+        year as i32,
+        mo as u32,
+        d as u32,
+        h as u32,
+        mi as u32,
+        s as u32,
+    )
 }
 
 /// Initialise the global tracing subscriber.
@@ -80,10 +87,7 @@ pub fn init(level: Level, output: LogOutput) -> io::Result<()> {
             .try_init(),
 
         LogOutput::File(path) => {
-            let file = OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(&path)?;
+            let file = OpenOptions::new().append(true).create(true).open(&path)?;
             let writer = Mutex::new(file);
             tracing_subscriber::fmt()
                 .with_env_filter(filter)
@@ -181,7 +185,11 @@ mod tests {
     fn init_file_creates_file() {
         let path = std::env::temp_dir().join("hs5t_logger_test_init.log");
         let _ = fs::remove_file(&path);
-        init(Level::DEBUG, LogOutput::File(path.to_str().unwrap().to_owned())).unwrap();
+        init(
+            Level::DEBUG,
+            LogOutput::File(path.to_str().unwrap().to_owned()),
+        )
+        .unwrap();
         assert!(path.exists(), "log file must be created");
         let _ = fs::remove_file(&path);
     }

@@ -15,7 +15,7 @@ A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 * Redirect UDP packets. (Fullcone NAT, UDP-in-UDP and UDP-in-TCP [^1])
 * Linux native CLI support.
 * Android / embedded integration via pre-opened TUN file descriptor.
-* Rust C FFI and Android JNI entry points for host integrations.
+* Android JNI entry points for host integrations.
 
 ## Current Platform Status
 
@@ -23,7 +23,7 @@ A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 |----------|--------|-------|
 | Linux | Supported | `hs5t` opens and configures the TUN device itself. |
 | Android | Supported via integration | Use the JNI crate or pass `HEV_SOCKS5_TUNNEL_FD`. |
-| Embedded / host-managed TUN | Supported | Pass a pre-opened TUN fd through `HEV_SOCKS5_TUNNEL_FD` or the Rust/C API. |
+| Embedded / host-managed TUN | Supported | Pass a pre-opened TUN fd through `HEV_SOCKS5_TUNNEL_FD` or the Rust API. |
 | macOS | Not yet implemented in Rust | TUN backend is still a stub. |
 | iOS | Not yet implemented in Rust | No Rust TUN backend yet. |
 | FreeBSD | Not yet implemented in Rust | TUN backend is still a stub. |
@@ -74,11 +74,6 @@ cargo build --manifest-path rust/Cargo.toml -p hs5t-bin --release
 The Rust workspace includes an Android JNI shim in `rust/crates/hs5t-jni`.
 That path expects the host Android app to provide an already-open TUN file
 descriptor to the runtime.
-
-### Legacy Scripts
-
-Top-level files such as `Android.mk` and `build-apple.sh` are legacy migration
-artifacts and do not describe the current Rust support matrix.
 
 ## How to Use
 

@@ -131,8 +131,7 @@ mod tests {
                 // Parse the SOCKS5 UDP frame to extract the real payload.
                 if let Ok((_from, payload)) = decode_udp_frame(&buf[..n]) {
                     // Echo back: wrap in SOCKS5 UDP frame with src = udp_echo_addr.
-                    let src: SocketAddr =
-                        SocketAddr::new(Ipv4Addr::LOCALHOST.into(), relay_port);
+                    let src: SocketAddr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), relay_port);
                     let reply = encode_udp_frame(src, payload);
                     let _ = udp_echo.send_to(&reply, peer).await;
                 }
@@ -159,7 +158,16 @@ mod tests {
             let port_bytes = relay_port.to_be_bytes();
             stream
                 .write_all(&[
-                    0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, port_bytes[0], port_bytes[1],
+                    0x05,
+                    0x00,
+                    0x00,
+                    0x01,
+                    127,
+                    0,
+                    0,
+                    1,
+                    port_bytes[0],
+                    port_bytes[1],
                 ])
                 .await
                 .unwrap();
@@ -180,8 +188,8 @@ mod tests {
     async fn relay_once_round_trip() {
         let (proxy_addr, echo_addr) = spawn_stub_proxy().await;
 
-        let session = UdpSession::new(proxy_addr, Auth::NoAuth)
-            .with_recv_timeout(Duration::from_secs(3));
+        let session =
+            UdpSession::new(proxy_addr, Auth::NoAuth).with_recv_timeout(Duration::from_secs(3));
 
         let cancel = CancellationToken::new();
         let result = session
@@ -199,8 +207,8 @@ mod tests {
     async fn relay_once_cancel_returns_none() {
         let (proxy_addr, echo_addr) = spawn_stub_proxy().await;
 
-        let session = UdpSession::new(proxy_addr, Auth::NoAuth)
-            .with_recv_timeout(Duration::from_secs(5));
+        let session =
+            UdpSession::new(proxy_addr, Auth::NoAuth).with_recv_timeout(Duration::from_secs(5));
 
         let cancel = CancellationToken::new();
         cancel.cancel(); // cancel immediately
@@ -238,15 +246,26 @@ mod tests {
             let _ = stream.read(&mut buf).await;
             let port_bytes = relay_port.to_be_bytes();
             stream
-                .write_all(&[0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, port_bytes[0], port_bytes[1]])
+                .write_all(&[
+                    0x05,
+                    0x00,
+                    0x00,
+                    0x01,
+                    127,
+                    0,
+                    0,
+                    1,
+                    port_bytes[0],
+                    port_bytes[1],
+                ])
                 .await
                 .unwrap();
             tokio::time::sleep(Duration::from_secs(2)).await;
         });
 
         let dst: SocketAddr = "127.0.0.1:9999".parse().unwrap();
-        let session = UdpSession::new(proxy_addr, Auth::NoAuth)
-            .with_recv_timeout(Duration::from_millis(100));
+        let session =
+            UdpSession::new(proxy_addr, Auth::NoAuth).with_recv_timeout(Duration::from_millis(100));
 
         let result = session
             .relay_once(dst, b"ping", CancellationToken::new())

@@ -10,7 +10,6 @@ members = [
     "crates/hs5t-core",
     "crates/hs5t-jni",
     "crates/hs5t-bin",
-    "tests/differential",
 ]
 
 [workspace.dependencies]
@@ -50,6 +49,3 @@ proptest = "1"
 
 # C interop
 libc = "0.2"
-
-# Build utilities
-cc = "1"

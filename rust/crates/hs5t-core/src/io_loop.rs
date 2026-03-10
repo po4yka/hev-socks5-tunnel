@@ -187,8 +187,12 @@ fn spawn_udp_session(
             Ok(Some((resp_payload, from))) => {
                 let raw = build_udp_response(from, src, &resp_payload);
                 if !raw.is_empty() {
-                    stats.rx_packets.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    stats.rx_bytes.fetch_add(raw.len() as u64, std::sync::atomic::Ordering::Relaxed);
+                    stats
+                        .rx_packets
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    stats
+                        .rx_bytes
+                        .fetch_add(raw.len() as u64, std::sync::atomic::Ordering::Relaxed);
                     let _ = udp_tx.send(raw).await;
                 }
             }
@@ -349,20 +353,30 @@ pub async fn io_loop_task(
 
                 IpClass::UdpDns { src, payload } => {
                     // mapdns_active is false: relay as regular UDP toward port 53.
-                    let dns_dst = SocketAddr::new(
-                        IpAddr::V4(Ipv4Addr::from(mapdns_net)),
-                        mapdns_port,
-                    );
+                    let dns_dst =
+                        SocketAddr::new(IpAddr::V4(Ipv4Addr::from(mapdns_net)), mapdns_port);
                     spawn_udp_session(
-                        proxy_sockaddr, auth.clone(), src, dns_dst, payload,
-                        cancel.child_token(), udp_tx.clone(), &stats,
+                        proxy_sockaddr,
+                        auth.clone(),
+                        src,
+                        dns_dst,
+                        payload,
+                        cancel.child_token(),
+                        udp_tx.clone(),
+                        &stats,
                     );
                 }
 
                 IpClass::Udp { src, dst, payload } => {
                     spawn_udp_session(
-                        proxy_sockaddr, auth.clone(), src, dst, payload,
-                        cancel.child_token(), udp_tx.clone(), &stats,
+                        proxy_sockaddr,
+                        auth.clone(),
+                        src,
+                        dst,
+                        payload,
+                        cancel.child_token(),
+                        udp_tx.clone(),
+                        &stats,
                     );
                 }
             }
