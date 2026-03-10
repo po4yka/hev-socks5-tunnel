@@ -4,9 +4,8 @@
 
 A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 
-> **Status:** The active implementation lives in the `rust/` workspace.
-> The repository still contains legacy C-era files and helper scripts used
-> during migration, but the top-level `make` target now builds the Rust CLI.
+> **Status:** This repository is now Rust-only. The implementation lives in
+> the `rust/` workspace, and the top-level `make` target builds the Rust CLI.
 
 ## Features
 
@@ -264,88 +263,23 @@ You can also set the route rules with multiple network segments like:
         a.b.c.f/24
 ```
 
-## API
+## Programmatic Integration
 
-```c
-/**
- * hev_socks5_tunnel_main:
- * @config_path: config file path
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Alias of hev_socks5_tunnel_main_from_file
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.4.6
- */
-int hev_socks5_tunnel_main (const char *config_path, int tun_fd);
+### Rust API
 
-/**
- * hev_socks5_tunnel_main_from_file:
- * @config_path: config file path
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.6.7
- */
-int hev_socks5_tunnel_main_from_file (const char *config_path, int tun_fd);
+The core runtime entry point is `hs5t_core::run_tunnel(config, tun_fd, cancel, stats)`.
+It expects the caller to provide an already-open TUN file descriptor.
 
-/**
- * hev_socks5_tunnel_main_from_str:
- * @config_str: string config
- * @config_len: the byte length of string config
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.6.7
- */
-int hev_socks5_tunnel_main_from_str (const unsigned char *config_str,
-                                     unsigned int config_len, int tun_fd);
+### Android JNI
 
-/**
- * hev_socks5_tunnel_quit:
- *
- * Stop the socks5 tunnel.
- *
- * Since: 2.4.6
- */
-void hev_socks5_tunnel_quit (void);
-
-/**
- * hev_socks5_tunnel_stats:
- * @tx_packets (out): transmitted packets
- * @tx_bytes (out): transmitted bytes
- * @rx_packets (out): received packets
- * @rx_bytes (out): received bytes
- *
- * Retrieve tunnel interface traffic statistics.
- *
- * Since: 2.6.5
- */
-void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
-                              size_t *rx_packets, size_t *rx_bytes);
-```
+Android hosts should integrate through `rust/crates/hs5t-jni`, which exposes
+the JNI entry points used by `hev.htproxy.TProxyService`.
 
 ## Use Cases
 
 ### Android VPN
 
 * [SocksTun](https://github.com/heiher/sockstun)
-
-### iOS
-
-* [Tun2SocksKit](https://github.com/EbrahimTahernejad/Tun2SocksKit)
 
 ## Contributors
 
