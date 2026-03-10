@@ -4,6 +4,10 @@
 
 A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 
+> **Note:** This project has been fully migrated to Rust. The original C
+> implementation has been removed. The `rust/` workspace is the sole
+> source of truth. The C Makefile is no longer functional.
+
 ## Features
 
 * IPv4/IPv6. (dual stack)
