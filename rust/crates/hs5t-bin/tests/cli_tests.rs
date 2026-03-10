@@ -110,7 +110,7 @@ fn i03_nonexistent_config_exits_1_with_stderr() {
 /// The test:
 /// 1. Writes a minimal valid config to a temp file.
 /// 2. Spawns hs5t with that config.
-/// 3. Asserts the process is still alive 200 ms after startup (the binary
+/// 3. Asserts the process is still alive 1 second after startup (the binary
 ///    must not exit immediately; it must remain running waiting for events).
 /// 4. Sends SIGINT.
 /// 5. Waits up to 3 s for the process to exit with status 0.
@@ -123,18 +123,20 @@ fn i04_sigint_causes_clean_shutdown() {
 
     let mut child = hs5t()
         .arg(tmp.to_str().expect("temp path must be valid UTF-8"))
+        .env("HEV_SOCKS5_TUNNEL_FD", "0")
+        .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .expect("failed to spawn hs5t");
 
     // Give the process time to reach its event loop.
-    std::thread::sleep(Duration::from_millis(200));
+    std::thread::sleep(Duration::from_secs(1));
 
     // The binary must still be running — it must not exit immediately on startup.
     assert!(
         child.try_wait().expect("try_wait failed").is_none(),
-        "hs5t must still be running 200 ms after startup (must not exit immediately)"
+        "hs5t must still be running 1 second after startup (must not exit immediately)"
     );
 
     // Send SIGINT.
