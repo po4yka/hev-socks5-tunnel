@@ -291,9 +291,9 @@ mod tests {
         write_bytes(&mut buf, &[0xBBu8; 4]);
 
         let (a, b) = buf.reading_bufs();
-        assert!(a.len() > 0, "main reading slice must be non-empty");
+        assert!(!a.is_empty(), "main reading slice must be non-empty");
         assert!(
-            b.len() > 0,
+            !b.is_empty(),
             "wrap reading slice must be non-empty (wrap-around case)"
         );
         assert_eq!(a.len() + b.len(), buf.rda_size());
@@ -323,9 +323,9 @@ mod tests {
         buf.read_release(4);
 
         let (a, b) = buf.writing_bufs();
-        assert!(a.len() > 0, "main writing slice must be non-empty");
+        assert!(!a.is_empty(), "main writing slice must be non-empty");
         assert!(
-            b.len() > 0,
+            !b.is_empty(),
             "wrap writing slice must be non-empty (wrap-around case)"
         );
         assert_eq!(

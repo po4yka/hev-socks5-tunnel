@@ -9,30 +9,6 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::LinuxTunnel;
 
-#[cfg(target_os = "macos")]
-mod macos;
-
-#[cfg(target_os = "macos")]
-pub use macos::MacosTunnel;
-
-#[cfg(target_os = "freebsd")]
-mod freebsd;
-
-#[cfg(target_os = "freebsd")]
-pub use freebsd::FreeBsdTunnel;
-
-#[cfg(target_os = "netbsd")]
-mod netbsd;
-
-#[cfg(target_os = "netbsd")]
-pub use netbsd::NetBsdTunnel;
-
-#[cfg(target_os = "windows")]
-mod windows;
-
-#[cfg(target_os = "windows")]
-pub use windows::WindowsTunnel;
-
 #[derive(Debug, thiserror::Error)]
 pub enum TunnelError {
     #[error("IO error: {0}")]
@@ -41,6 +17,77 @@ pub enum TunnelError {
     Ioctl(String),
     #[error("Not supported on this platform")]
     NotSupported,
+}
+
+/// Shared placeholder for Unix tunnel backends that are not implemented yet.
+#[cfg(unix)]
+#[derive(Debug)]
+pub struct UnsupportedUnixTunnel;
+
+#[cfg(unix)]
+impl TunnelDriver for UnsupportedUnixTunnel {
+    fn open(_name: Option<&str>, _multi_queue: bool) -> Result<Self, TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
+
+    fn fd(&self) -> RawFd {
+        -1
+    }
+
+    fn name(&self) -> &str {
+        ""
+    }
+
+    fn index(&self) -> u32 {
+        0
+    }
+
+    fn set_mtu(&self, _mtu: u32) -> Result<(), TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
+
+    fn set_ipv4(&self, _addr: Ipv4Addr, _prefix: u8) -> Result<(), TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
+
+    fn set_ipv6(&self, _addr: Ipv6Addr, _prefix: u8) -> Result<(), TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
+
+    fn set_up(&self) -> Result<(), TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
+
+    fn set_down(&self) -> Result<(), TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
+}
+
+/// FreeBSD TUN device stub.
+#[cfg(target_os = "freebsd")]
+pub type FreeBsdTunnel = UnsupportedUnixTunnel;
+
+/// macOS UTUN device stub.
+///
+/// Provides the correct compile-time shape for cross-compilation targets.
+/// All runtime operations return `TunnelError::NotSupported`.
+#[cfg(target_os = "macos")]
+pub type MacosTunnel = UnsupportedUnixTunnel;
+
+/// NetBSD TUN device stub.
+#[cfg(target_os = "netbsd")]
+pub type NetBsdTunnel = UnsupportedUnixTunnel;
+
+/// Windows TUN device stub (via wintun crate, not yet implemented).
+#[cfg(target_os = "windows")]
+pub struct WindowsTunnel;
+
+#[cfg(target_os = "windows")]
+impl WindowsTunnel {
+    /// Always returns [`TunnelError::NotSupported`].
+    pub fn open(_name: Option<&str>, _multi_queue: bool) -> Result<Self, TunnelError> {
+        Err(TunnelError::NotSupported)
+    }
 }
 
 /// Platform-independent TUN device driver.
@@ -116,47 +163,17 @@ mod tests {
     #[cfg(unix)]
     fn _assert_send_sync<T: Send + Sync>() {}
 
-    // A minimal mock that satisfies the trait bounds to confirm the API compiles.
     #[cfg(unix)]
-    struct MockTunnel;
-
-    #[cfg(unix)]
-    impl TunnelDriver for MockTunnel {
-        fn open(_name: Option<&str>, _multi_queue: bool) -> Result<Self, TunnelError> {
-            Ok(MockTunnel)
-        }
-        fn fd(&self) -> RawFd {
-            -1
-        }
-        fn name(&self) -> &str {
-            "mock0"
-        }
-        fn index(&self) -> u32 {
-            0
-        }
-        fn set_mtu(&self, _mtu: u32) -> Result<(), TunnelError> {
-            Err(TunnelError::NotSupported)
-        }
-        fn set_ipv4(&self, _addr: Ipv4Addr, _prefix: u8) -> Result<(), TunnelError> {
-            Err(TunnelError::NotSupported)
-        }
-        fn set_ipv6(&self, _addr: Ipv6Addr, _prefix: u8) -> Result<(), TunnelError> {
-            Err(TunnelError::NotSupported)
-        }
-        fn set_up(&self) -> Result<(), TunnelError> {
-            Err(TunnelError::NotSupported)
-        }
-        fn set_down(&self) -> Result<(), TunnelError> {
-            Err(TunnelError::NotSupported)
-        }
-    }
+    type MockTunnel = UnsupportedUnixTunnel;
 
     #[cfg(unix)]
     #[test]
     fn mock_tunnel_trait_compiles() {
-        let t = MockTunnel::open(None, false).unwrap();
+        let err = MockTunnel::open(None, false).unwrap_err();
+        assert!(matches!(err, TunnelError::NotSupported));
+        let t = UnsupportedUnixTunnel;
         assert_eq!(t.fd(), -1);
-        assert_eq!(t.name(), "mock0");
+        assert_eq!(t.name(), "");
         assert_eq!(t.index(), 0);
         assert!(matches!(t.set_mtu(1500), Err(TunnelError::NotSupported)));
         assert!(matches!(

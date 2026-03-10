@@ -192,6 +192,7 @@ impl DnsCache {
 
         // Build answer records at current offset in res[].
         let mut woff = off;
+        let mut answers_written = 0usize;
         for &ip in ips[..ipn].iter() {
             if woff + 16 > res.len() {
                 break;
@@ -220,6 +221,7 @@ impl DnsCache {
             res[woff + 14] = ip_bytes[2];
             res[woff + 15] = ip_bytes[3];
             woff += 16;
+            answers_written += 1;
         }
 
         // Patch response flags: QR=1, RA = (RD >> 1).
@@ -231,7 +233,7 @@ impl DnsCache {
         res[3] = fl_bytes[1];
 
         // Patch ANCOUNT.
-        let an_bytes = (ipn as u16).to_be_bytes();
+        let an_bytes = (answers_written as u16).to_be_bytes();
         res[6] = an_bytes[0];
         res[7] = an_bytes[1];
 
@@ -305,13 +307,29 @@ mod tests {
         pkt
     }
 
+    fn make_multi_a_query(names: &[&str]) -> Vec<u8> {
+        let mut pkt = Vec::with_capacity(128);
+        pkt.extend_from_slice(&1u16.to_be_bytes()); // ID = 1
+        pkt.extend_from_slice(&0x0100u16.to_be_bytes()); // flags: RD=1
+        pkt.extend_from_slice(&(names.len() as u16).to_be_bytes());
+        pkt.extend_from_slice(&0u16.to_be_bytes()); // ANCOUNT = 0
+        pkt.extend_from_slice(&0u16.to_be_bytes()); // NSCOUNT = 0
+        pkt.extend_from_slice(&0u16.to_be_bytes()); // ARCOUNT = 0
+        for name in names {
+            pkt.extend(encode_name(name));
+            pkt.extend_from_slice(&1u16.to_be_bytes()); // QTYPE = A
+            pkt.extend_from_slice(&1u16.to_be_bytes()); // QCLASS = IN
+        }
+        pkt
+    }
+
     // -----------------------------------------------------------------------
     // Test 1: sequential IP assignment
     // -----------------------------------------------------------------------
     #[test]
     fn test_sequential_ip_assignment() {
         let mut cache = DnsCache::new(NET, MASK, 4);
-        assert_eq!(cache.find("a.com"), Some(NET | 0));
+        assert_eq!(cache.find("a.com"), Some(NET));
         assert_eq!(cache.find("b.com"), Some(NET | 1));
         assert_eq!(cache.find("c.com"), Some(NET | 2));
         assert_eq!(cache.find("d.com"), Some(NET | 3));
@@ -330,7 +348,7 @@ mod tests {
 
         // Inserting "e.com" must evict "a.com" (LRU) and reuse slot 0.
         let ip_e = cache.find("e.com");
-        assert_eq!(ip_e, Some(NET | 0), "e.com must reclaim slot 0");
+        assert_eq!(ip_e, Some(NET), "e.com must reclaim slot 0");
 
         // Entries inserted after "a.com" must survive.
         assert_eq!(cache.find("b.com"), Some(NET | 1));
@@ -351,11 +369,7 @@ mod tests {
 
         // Touch "a.com" → moves to MRU tail; LRU order = [b, c, a].
         let ip_a_again = cache.find("a.com");
-        assert_eq!(
-            ip_a_again,
-            Some(NET | 0),
-            "a.com must keep its IP on re-find"
-        );
+        assert_eq!(ip_a_again, Some(NET), "a.com must keep its IP on re-find");
 
         // Insert "d.com" → must evict "b.com" (new LRU front), reuse slot 1.
         let ip_d = cache.find("d.com");
@@ -366,7 +380,7 @@ mod tests {
         );
 
         // "a.com" and "c.com" must still be reachable.
-        assert_eq!(cache.find("a.com"), Some(NET | 0));
+        assert_eq!(cache.find("a.com"), Some(NET));
         assert_eq!(cache.find("c.com"), Some(NET | 2));
     }
 
@@ -443,7 +457,7 @@ mod tests {
             res[ans_off + 14],
             res[ans_off + 15],
         ]);
-        assert_eq!(ip, NET | 0, "RDATA must be NET | 0");
+        assert_eq!(ip, NET, "RDATA must be NET | 0");
 
         // Total response length
         assert_eq!(
@@ -451,6 +465,28 @@ mod tests {
             ans_off + 16,
             "response length must be {}",
             ans_off + 16
+        );
+    }
+
+    #[test]
+    fn test_handle_limits_answer_count_to_serialized_answers() {
+        let mut cache = DnsCache::new(NET, MASK, 4);
+        let mut req = make_multi_a_query(&["a.com", "b.com"]);
+        let mut res = vec![0u8; req.len() + 16];
+
+        let rlen = cache
+            .handle(&mut req, &mut res)
+            .expect("handle must succeed when only one answer fits");
+
+        let ancount = u16::from_be_bytes([res[6], res[7]]);
+        assert_eq!(
+            ancount, 1,
+            "ANCOUNT must match the number of written answers"
+        );
+        assert_eq!(
+            rlen,
+            req.len() + 16,
+            "response length must reflect exactly one serialized answer"
         );
     }
 
@@ -521,14 +557,14 @@ mod tests {
 
         // Inserting "c.com" must evict "a.com" and reuse slot 0.
         let ip_c = cache.find("c.com").expect("find must succeed");
-        assert_eq!(ip_c, NET | 0, "c.com must get the evicted slot 0");
+        assert_eq!(ip_c, NET, "c.com must get the evicted slot 0");
 
         // "b.com" at slot 1 must be unaffected.
         assert_eq!(cache.find("b.com"), Some(NET | 1));
         // "c.com" is idempotent: second find returns same IP.
-        assert_eq!(cache.find("c.com"), Some(NET | 0));
+        assert_eq!(cache.find("c.com"), Some(NET));
         // Reverse lookup for "c.com"'s IP must work too.
-        assert_eq!(cache.lookup(NET | 0), Some("c.com"));
+        assert_eq!(cache.lookup(NET), Some("c.com"));
     }
 
     // -----------------------------------------------------------------------

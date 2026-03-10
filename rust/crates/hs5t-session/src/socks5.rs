@@ -98,6 +98,22 @@ pub enum Auth {
     UserPass { username: String, password: String },
 }
 
+fn auth_method(auth: &Auth) -> u8 {
+    match auth {
+        Auth::NoAuth => 0x00,
+        Auth::UserPass { .. } => 0x02,
+    }
+}
+
+fn checked_auth_field_len(field: &str, label: &str) -> io::Result<u8> {
+    u8::try_from(field.len()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("SOCKS5: {label} must be at most 255 bytes"),
+        )
+    })
+}
+
 /// Perform SOCKS5 handshake (method negotiation + optional auth).
 ///
 /// On success the stream is ready for a CONNECT/ASSOCIATE request.
@@ -105,11 +121,7 @@ pub async fn handshake<S>(stream: &mut S, auth: &Auth) -> io::Result<()>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    // Method byte: 0x00 = NO_AUTH, 0x02 = USERNAME_PASSWORD
-    let method = match auth {
-        Auth::NoAuth => 0x00u8,
-        Auth::UserPass { .. } => 0x02u8,
-    };
+    let method = auth_method(auth);
 
     // Send greeting: VER=5, NMETHODS=1, METHOD
     stream.write_all(&[0x05, 0x01, method]).await?;
@@ -118,6 +130,13 @@ where
     let mut resp = [0u8; 2];
     stream.read_exact(&mut resp).await?;
 
+    if resp[0] != 0x05 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("SOCKS5: invalid handshake version {:#04x}", resp[0]),
+        ));
+    }
+
     if resp[1] == 0xFF {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
@@ -125,10 +144,20 @@ where
         ));
     }
 
+    if resp[1] != method {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!(
+                "SOCKS5: server selected method {:#04x}, expected {:#04x}",
+                resp[1], method
+            ),
+        ));
+    }
+
     // Sub-authentication for USERNAME_PASSWORD
     if let Auth::UserPass { username, password } = auth {
-        let ulen = username.len() as u8;
-        let plen = password.len() as u8;
+        let ulen = checked_auth_field_len(username, "username")?;
+        let plen = checked_auth_field_len(password, "password")?;
 
         let mut req = Vec::with_capacity(3 + username.len() + password.len());
         req.push(0x01); // sub-negotiation version
@@ -312,6 +341,34 @@ mod tests {
         assert!(result.is_err(), "expected error when server returns 0xFF");
     }
 
+    #[tokio::test]
+    async fn noauth_handshake_rejects_unexpected_method_selection() {
+        let mut mock = Builder::new()
+            .write(&[0x05, 0x01, 0x00])
+            .read(&[0x05, 0x02])
+            .build();
+
+        let result = handshake(&mut mock, &Auth::NoAuth).await;
+        assert!(
+            result.is_err(),
+            "expected error when server selects a method the client did not request"
+        );
+    }
+
+    #[tokio::test]
+    async fn noauth_handshake_rejects_invalid_server_version() {
+        let mut mock = Builder::new()
+            .write(&[0x05, 0x01, 0x00])
+            .read(&[0x04, 0x00])
+            .build();
+
+        let result = handshake(&mut mock, &Auth::NoAuth).await;
+        assert!(
+            result.is_err(),
+            "expected error when server responds with a non-SOCKS5 version"
+        );
+    }
+
     // -------------------------------------------------------------------------
     // UserPass
     // -------------------------------------------------------------------------
@@ -379,6 +436,42 @@ mod tests {
         assert!(
             result.is_err(),
             "expected error when server rejects credentials"
+        );
+    }
+
+    #[tokio::test]
+    async fn userpass_handshake_rejects_server_selecting_noauth() {
+        let mut mock = Builder::new()
+            .write(&[0x05, 0x01, 0x02])
+            .read(&[0x05, 0x00])
+            .build();
+
+        let auth = Auth::UserPass {
+            username: "alice".to_string(),
+            password: "secret".to_string(),
+        };
+        let result = handshake(&mut mock, &auth).await;
+        assert!(
+            result.is_err(),
+            "expected error when the server does not select username/password auth"
+        );
+    }
+
+    #[tokio::test]
+    async fn userpass_handshake_rejects_oversized_username() {
+        let auth = Auth::UserPass {
+            username: "u".repeat(256),
+            password: "secret".to_string(),
+        };
+        let mut mock = Builder::new()
+            .write(&[0x05, 0x01, 0x02])
+            .read(&[0x05, 0x02])
+            .build();
+
+        let result = handshake(&mut mock, &auth).await;
+        assert!(
+            result.is_err(),
+            "expected error when the username exceeds the SOCKS5 one-byte length field"
         );
     }
 

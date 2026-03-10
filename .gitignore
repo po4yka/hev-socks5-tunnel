@@ -4,4 +4,7 @@ HevSocks5Tunnel.xcframework
 obj
 libs
 .ralph/
+.desloppify/
+.agents/skills/desloppify/
+scorecard.png
 rust/target/
