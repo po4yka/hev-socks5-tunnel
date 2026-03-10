@@ -1,5 +1,5 @@
 use std::io;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Destination address for a SOCKS5 CONNECT or UDP ASSOCIATE request.
@@ -151,6 +151,130 @@ where
     }
 
     Ok(())
+}
+
+/// Send a SOCKS5 UDP ASSOCIATE request and return the relay `SocketAddr`.
+///
+/// The stream MUST have completed a successful [`handshake`] before calling
+/// this function.  Bind address `0.0.0.0:0` signals "any source" per RFC 1928.
+pub async fn associate<S>(stream: &mut S) -> io::Result<SocketAddr>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    // CMD=3 (UDP ASSOCIATE), bind 0.0.0.0:0
+    let req = [
+        0x05u8, 0x03, 0x00, // VER CMD RSV
+        0x01, // ATYP = IPv4
+        0x00, 0x00, 0x00, 0x00, // 0.0.0.0
+        0x00, 0x00, // port 0
+    ];
+    stream.write_all(&req).await?;
+
+    // Read reply header: [VER, REP, RSV, ATYP]
+    let mut hdr = [0u8; 4];
+    stream.read_exact(&mut hdr).await?;
+
+    if hdr[1] != 0x00 {
+        return Err(io::Error::new(
+            io::ErrorKind::ConnectionRefused,
+            format!("SOCKS5: UDP ASSOCIATE failed with REP={:#04x}", hdr[1]),
+        ));
+    }
+
+    // Parse BND.ADDR : BND.PORT
+    let relay = match hdr[3] {
+        0x01 => {
+            let mut addr = [0u8; 4];
+            stream.read_exact(&mut addr).await?;
+            let mut port = [0u8; 2];
+            stream.read_exact(&mut port).await?;
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::from(addr)), u16::from_be_bytes(port))
+        }
+        0x04 => {
+            let mut addr = [0u8; 16];
+            stream.read_exact(&mut addr).await?;
+            let mut port = [0u8; 2];
+            stream.read_exact(&mut port).await?;
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::from(addr)), u16::from_be_bytes(port))
+        }
+        t => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("SOCKS5: unknown ATYP={t} in ASSOCIATE reply"),
+            ))
+        }
+    };
+
+    Ok(relay)
+}
+
+/// Encode a SOCKS5 UDP request frame (RFC 1928 §7).
+///
+/// ```text
+/// +----+------+------+----------+----------+----------+
+/// |RSV | FRAG | ATYP | DST.ADDR | DST.PORT |   DATA   |
+/// +----+------+------+----------+----------+----------+
+/// |  2 |   1  |   1  | variable |    2     | variable |
+/// +----+------+------+----------+----------+----------+
+/// ```
+pub fn encode_udp_frame(dst: SocketAddr, payload: &[u8]) -> Vec<u8> {
+    let mut frame = Vec::with_capacity(payload.len() + 22);
+    frame.extend_from_slice(&[0x00, 0x00, 0x00]); // RSV RSV FRAG=0
+    match dst {
+        SocketAddr::V4(a) => {
+            frame.push(0x01);
+            frame.extend_from_slice(&a.ip().octets());
+            frame.extend_from_slice(&a.port().to_be_bytes());
+        }
+        SocketAddr::V6(a) => {
+            frame.push(0x04);
+            frame.extend_from_slice(&a.ip().octets());
+            frame.extend_from_slice(&a.port().to_be_bytes());
+        }
+    }
+    frame.extend_from_slice(payload);
+    frame
+}
+
+/// Decode a SOCKS5 UDP response frame.
+///
+/// Returns `(from_addr, payload)` on success.
+pub fn decode_udp_frame(frame: &[u8]) -> io::Result<(SocketAddr, &[u8])> {
+    // Minimum: RSV(2) + FRAG(1) + ATYP(1) + IPv4(4) + PORT(2) = 10
+    if frame.len() < 10 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "SOCKS5 UDP frame too short",
+        ));
+    }
+    // frame[0..2] = RSV, frame[2] = FRAG (ignored), frame[3] = ATYP
+    let (addr, data_start) = match frame[3] {
+        0x01 => {
+            let ip = Ipv4Addr::new(frame[4], frame[5], frame[6], frame[7]);
+            let port = u16::from_be_bytes([frame[8], frame[9]]);
+            (SocketAddr::new(IpAddr::V4(ip), port), 10)
+        }
+        0x04 => {
+            if frame.len() < 22 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "SOCKS5 UDP IPv6 frame too short",
+                ));
+            }
+            let mut raw = [0u8; 16];
+            raw.copy_from_slice(&frame[4..20]);
+            let ip = Ipv6Addr::from(raw);
+            let port = u16::from_be_bytes([frame[20], frame[21]]);
+            (SocketAddr::new(IpAddr::V6(ip), port), 22)
+        }
+        t => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("SOCKS5 UDP: unknown ATYP={t}"),
+            ))
+        }
+    };
+    Ok((addr, &frame[data_start..]))
 }
 
 #[cfg(test)]
@@ -361,5 +485,76 @@ mod tests {
         )));
         let result = connect(&mut mock, &addr).await;
         assert!(result.is_err(), "expected error for non-zero REP");
+    }
+
+    // -------------------------------------------------------------------------
+    // UDP ASSOCIATE
+    // -------------------------------------------------------------------------
+
+    /// Happy path: server returns relay addr 127.0.0.1:1080.
+    #[tokio::test]
+    async fn associate_returns_relay_addr() {
+        let associate_req = [0x05u8, 0x03, 0x00, 0x01, 0, 0, 0, 0, 0, 0];
+        // Reply: VER=5, REP=0, RSV=0, ATYP=1, 127.0.0.1, port=1080
+        let associate_reply = [0x05u8, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x04, 0x38];
+
+        let mut mock = Builder::new()
+            .write(&associate_req)
+            .read(&associate_reply)
+            .build();
+
+        let relay = associate(&mut mock).await.unwrap();
+        assert_eq!(relay.ip().to_string(), "127.0.0.1");
+        assert_eq!(relay.port(), 1080);
+    }
+
+    /// Non-zero REP byte must return an error.
+    /// Only 4 header bytes are provided — we error before reading BND.ADDR.
+    #[tokio::test]
+    async fn associate_fails_on_server_error() {
+        let associate_req = [0x05u8, 0x03, 0x00, 0x01, 0, 0, 0, 0, 0, 0];
+        // REP=1 (general failure): only the 4-byte header, no BND.ADDR/PORT
+        let associate_reply = [0x05u8, 0x01, 0x00, 0x01];
+
+        let mut mock = Builder::new()
+            .write(&associate_req)
+            .read(&associate_reply)
+            .build();
+
+        assert!(associate(&mut mock).await.is_err());
+    }
+
+    // -------------------------------------------------------------------------
+    // UDP framing
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn encode_ipv4_frame_has_correct_header() {
+        use std::net::{Ipv4Addr, SocketAddrV4};
+        let dst = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(1, 2, 3, 4), 5000));
+        let payload = b"hello";
+        let frame = encode_udp_frame(dst, payload);
+        // RSV RSV FRAG ATYP addr[4] port[2] data[5]
+        assert_eq!(&frame[..3], &[0x00, 0x00, 0x00]); // RSV+FRAG
+        assert_eq!(frame[3], 0x01); // ATYP = IPv4
+        assert_eq!(&frame[4..8], &[1, 2, 3, 4]);
+        assert_eq!(&frame[8..10], &[0x13, 0x88]); // 5000 big-endian
+        assert_eq!(&frame[10..], b"hello");
+    }
+
+    #[test]
+    fn decode_ipv4_frame_round_trips() {
+        use std::net::{Ipv4Addr, SocketAddrV4};
+        let dst = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(192, 168, 1, 1), 53));
+        let payload = b"dns-query";
+        let frame = encode_udp_frame(dst, payload);
+        let (from, data) = decode_udp_frame(&frame).unwrap();
+        assert_eq!(from, dst);
+        assert_eq!(data, b"dns-query");
+    }
+
+    #[test]
+    fn decode_frame_too_short_is_err() {
+        assert!(decode_udp_frame(&[0u8; 5]).is_err());
     }
 }

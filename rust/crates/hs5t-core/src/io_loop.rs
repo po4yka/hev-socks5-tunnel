@@ -24,7 +24,7 @@ use tracing::{debug, error, info, warn};
 
 use hs5t_config::Config;
 use hs5t_dns_cache::DnsCache;
-use hs5t_session::{Auth, TargetAddr, TcpSession};
+use hs5t_session::{Auth, TargetAddr, TcpSession, UdpSession};
 
 use crate::classify::classify_ip_packet;
 use crate::{ActiveSessions, IpClass, SessionEntry, Stats, TunDevice};
@@ -163,6 +163,45 @@ fn proxy_addr(config: &Config) -> io::Result<SocketAddr> {
     Ok(SocketAddr::new(ip, config.socks5.port))
 }
 
+// ── UDP session helper ────────────────────────────────────────────────────────
+
+/// Spawn a fire-and-forget UDP relay task.
+///
+/// On response the task builds a raw IP/UDP packet and sends it via `udp_tx`
+/// so the io_loop can write it back to TUN.
+#[allow(clippy::too_many_arguments)]
+fn spawn_udp_session(
+    proxy_addr: SocketAddr,
+    auth: Auth,
+    src: SocketAddr,
+    dst: SocketAddr,
+    payload: Vec<u8>,
+    cancel: CancellationToken,
+    udp_tx: tokio::sync::mpsc::Sender<Vec<u8>>,
+    stats: &Arc<Stats>,
+) {
+    let stats = Arc::clone(stats);
+    tokio::spawn(async move {
+        let session = UdpSession::new(proxy_addr, auth);
+        match session.relay_once(dst, &payload, cancel).await {
+            Ok(Some((resp_payload, from))) => {
+                let raw = build_udp_response(from, src, &resp_payload);
+                if !raw.is_empty() {
+                    stats.rx_packets.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    stats.rx_bytes.fetch_add(raw.len() as u64, std::sync::atomic::Ordering::Relaxed);
+                    let _ = udp_tx.send(raw).await;
+                }
+            }
+            Ok(None) => {
+                debug!("UDP relay to {} timed out or cancelled", dst);
+            }
+            Err(e) => {
+                debug!("UDP relay to {} error: {}", dst, e);
+            }
+        }
+    });
+}
+
 // ── io_loop_task ──────────────────────────────────────────────────────────────
 
 /// Main tunnel event loop.
@@ -216,6 +255,9 @@ pub async fn io_loop_task(
     // Key: TCP destination port, Value: smoltcp SocketHandle.
     // When the socket transitions to ESTABLISHED, the entry is removed.
     let mut pending_listens: HashMap<u16, SocketHandle> = HashMap::new();
+
+    // Channel for UDP session tasks to return raw IP packets to write to TUN.
+    let (udp_tx, mut udp_rx) = tokio::sync::mpsc::channel::<Vec<u8>>(256);
 
     // Read buffer — sized for max MTU + overhead.
     let mtu = config.tunnel.mtu as usize;
@@ -305,20 +347,22 @@ pub async fn io_loop_task(
                     }
                 }
 
-                IpClass::UdpDns { src, .. } => {
-                    // mapdns_active is false: treat as regular UDP.
-                    // TODO(po4yka): spawn UdpSession when hs5t-session adds UdpSession.
-                    debug!(
-                        "UDP DNS (mapdns inactive) from {} — dropped (UdpSession pending)",
-                        src
+                IpClass::UdpDns { src, payload } => {
+                    // mapdns_active is false: relay as regular UDP toward port 53.
+                    let dns_dst = SocketAddr::new(
+                        IpAddr::V4(Ipv4Addr::from(mapdns_net)),
+                        mapdns_port,
+                    );
+                    spawn_udp_session(
+                        proxy_sockaddr, auth.clone(), src, dns_dst, payload,
+                        cancel.child_token(), udp_tx.clone(), &stats,
                     );
                 }
 
-                IpClass::Udp { src, dst, .. } => {
-                    // TODO(po4yka): spawn UdpSession when hs5t-session adds UdpSession.
-                    debug!(
-                        "UDP packet {} → {} — dropped (UdpSession pending)",
-                        src, dst
+                IpClass::Udp { src, dst, payload } => {
+                    spawn_udp_session(
+                        proxy_sockaddr, auth.clone(), src, dst, payload,
+                        cancel.child_token(), udp_tx.clone(), &stats,
                     );
                 }
             }
@@ -501,9 +545,20 @@ pub async fn io_loop_task(
             .map(|d| Duration::from_micros(d.total_micros()))
             .unwrap_or(Duration::from_millis(DEFAULT_POLL_DELAY_MS));
 
+        // Drain any UDP response packets that arrived between loop iterations.
+        while let Ok(raw_pkt) = udp_rx.try_recv() {
+            if let Err(e) = tun.try_io(Interest::WRITABLE, |inner| {
+                let mut f = inner;
+                f.write_all(&raw_pkt)
+            }) {
+                debug!("UDP response TUN write error: {:?}", e);
+            }
+        }
+
         tokio::select! {
             _ = tun.readable() => {},
             _ = tokio::time::sleep(smol_delay) => {},
+            _ = udp_rx.recv() => {}, // wake up when a UDP response is ready
             _ = cancel.cancelled() => {
                 info!("io_loop cancelled — shutting down");
                 break;
