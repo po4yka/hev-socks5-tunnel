@@ -7,14 +7,14 @@ use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
-use smoltcp::socket::Socket;
 use smoltcp::socket::tcp::{self, Socket as TcpSocket};
+use smoltcp::socket::Socket;
 use smoltcp::time::Instant;
 use smoltcp::wire::IpAddress;
 use tokio::io::unix::AsyncFd;
@@ -24,10 +24,10 @@ use tracing::{debug, error, info, warn};
 
 use hs5t_config::Config;
 use hs5t_dns_cache::DnsCache;
-use hs5t_session::{Auth, TcpSession, TargetAddr};
+use hs5t_session::{Auth, TargetAddr, TcpSession};
 
-use crate::{ActiveSessions, IpClass, SessionEntry, Stats, TunDevice};
 use crate::classify::classify_ip_packet;
+use crate::{ActiveSessions, IpClass, SessionEntry, Stats, TunDevice};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -193,23 +193,22 @@ pub async fn io_loop_task(
     let auth = make_auth(&config);
 
     // Mapdns parameters (Decision B).
-    let (mapdns_net, mapdns_mask, mapdns_port, mapdns_active) =
-        if let Some(m) = &config.mapdns {
-            let net = m
-                .address
-                .parse::<Ipv4Addr>()
-                .map(u32::from)
-                .unwrap_or(0xC612_0000);
-            let mask = m
-                .netmask
-                .as_deref()
-                .and_then(|s| s.parse::<Ipv4Addr>().ok())
-                .map(u32::from)
-                .unwrap_or(0xFFFE_0000);
-            (net, mask, m.port, m.cache_size > 0)
-        } else {
-            (0, 0, 53, false)
-        };
+    let (mapdns_net, mapdns_mask, mapdns_port, mapdns_active) = if let Some(m) = &config.mapdns {
+        let net = m
+            .address
+            .parse::<Ipv4Addr>()
+            .map(u32::from)
+            .unwrap_or(0xC612_0000);
+        let mask = m
+            .netmask
+            .as_deref()
+            .and_then(|s| s.parse::<Ipv4Addr>().ok())
+            .map(u32::from)
+            .unwrap_or(0xFFFE_0000);
+        (net, mask, m.port, m.cache_size > 0)
+    } else {
+        (0, 0, 53, false)
+    };
 
     let max_sessions = config.misc.max_session_count as usize;
 
@@ -225,12 +224,18 @@ pub async fn io_loop_task(
     // Handles to remove at end of Phase 4.
     let mut to_remove: Vec<SocketHandle> = Vec::new();
 
-    info!("io_loop started (proxy={}, max_sessions={})", proxy_sockaddr, max_sessions);
+    info!(
+        "io_loop started (proxy={}, max_sessions={})",
+        proxy_sockaddr, max_sessions
+    );
 
     loop {
         // ── Phase 1: drain TUN fd ─────────────────────────────────────────────
         loop {
-            let n = match tun.try_io(Interest::READABLE, |inner| { let mut f = inner; f.read(&mut buf) }) {
+            let n = match tun.try_io(Interest::READABLE, |inner| {
+                let mut f = inner;
+                f.read(&mut buf)
+            }) {
                 Ok(0) => break, // EOF (unexpected for TUN; stop draining)
                 Ok(n) => n,
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => break, // no more data
@@ -278,13 +283,16 @@ pub async fn io_loop_task(
                         let mut res = vec![0u8; 512];
                         match cache.handle(&mut req, &mut res) {
                             Ok(n) => {
-                                let mapdns_addr =
-                                    SocketAddr::new(IpAddr::V4(Ipv4Addr::from(mapdns_net)), mapdns_port);
+                                let mapdns_addr = SocketAddr::new(
+                                    IpAddr::V4(Ipv4Addr::from(mapdns_net)),
+                                    mapdns_port,
+                                );
                                 let resp_pkt = build_udp_response(mapdns_addr, src, &res[..n]);
                                 if !resp_pkt.is_empty() {
                                     // Best-effort write — silently ignore errors.
                                     if let Err(e) = tun.try_io(Interest::WRITABLE, |inner| {
-                                        let mut f = inner; f.write_all(&resp_pkt)
+                                        let mut f = inner;
+                                        f.write_all(&resp_pkt)
                                     }) {
                                         debug!("DNS response write would-block (dropped): {:?}", e);
                                     }
@@ -300,12 +308,18 @@ pub async fn io_loop_task(
                 IpClass::UdpDns { src, .. } => {
                     // mapdns_active is false: treat as regular UDP.
                     // TODO(po4yka): spawn UdpSession when hs5t-session adds UdpSession.
-                    debug!("UDP DNS (mapdns inactive) from {} — dropped (UdpSession pending)", src);
+                    debug!(
+                        "UDP DNS (mapdns inactive) from {} — dropped (UdpSession pending)",
+                        src
+                    );
                 }
 
                 IpClass::Udp { src, dst, .. } => {
                     // TODO(po4yka): spawn UdpSession when hs5t-session adds UdpSession.
-                    debug!("UDP packet {} → {} — dropped (UdpSession pending)", src, dst);
+                    debug!(
+                        "UDP packet {} → {} — dropped (UdpSession pending)",
+                        src, dst
+                    );
                 }
             }
         }
@@ -349,12 +363,13 @@ pub async fn io_loop_task(
                 let target = TargetAddr::Ip(remote_addr);
                 let (smoltcp_side, session_side) = tokio::io::duplex(DUPLEX_BUF);
                 let child_cancel = cancel.child_token();
-                let session_inst =
-                    TcpSession::new(proxy_sockaddr, auth.clone(), target);
+                let session_inst = TcpSession::new(proxy_sockaddr, auth.clone(), target);
                 let child_cancel_clone = child_cancel.clone();
                 let jh = tokio::spawn(async move {
                     let mut session_side = session_side;
-                    session_inst.run(&mut session_side, child_cancel_clone).await
+                    session_inst
+                        .run(&mut session_side, child_cancel_clone)
+                        .await
                 });
 
                 let entry = SessionEntry {
@@ -402,7 +417,10 @@ pub async fn io_loop_task(
                     tcp.send_slice(&tmp2[..n]).ok();
                 }
                 Some(Err(e)) => {
-                    debug!("smoltcp_side read error: {} — closing session {:?}", e, handle);
+                    debug!(
+                        "smoltcp_side read error: {} — closing session {:?}",
+                        e, handle
+                    );
                     tcp.close();
                     to_remove.push(handle);
                 }
@@ -423,7 +441,10 @@ pub async fn io_loop_task(
             }
             if let Some(entry) = sessions.get_mut(handle) {
                 if let Err(e) = entry.smoltcp_side.write_all(&data).await {
-                    debug!("smoltcp_side write error: {} — closing session {:?}", e, handle);
+                    debug!(
+                        "smoltcp_side write error: {} — closing session {:?}",
+                        e, handle
+                    );
                     to_remove.push(handle);
                 }
             }
@@ -452,11 +473,14 @@ pub async fn io_loop_task(
             // Try non-blocking write; if the fd is not writable, wait once.
             loop {
                 match tun.try_io(Interest::WRITABLE, |inner| {
-                    let mut f = inner; f.write_all(&pkt)
+                    let mut f = inner;
+                    f.write_all(&pkt)
                 }) {
                     Ok(()) => {
                         stats.rx_packets.fetch_add(1, Ordering::Relaxed);
-                        stats.rx_bytes.fetch_add(pkt.len() as u64, Ordering::Relaxed);
+                        stats
+                            .rx_bytes
+                            .fetch_add(pkt.len() as u64, Ordering::Relaxed);
                         break;
                     }
                     Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -494,11 +518,7 @@ pub async fn io_loop_task(
             entry.cancel.cancel();
             entry.smoltcp_side.shutdown().await.ok();
             // Await with a short timeout to let the session observe the cancel.
-            let _ = tokio::time::timeout(
-                Duration::from_secs(5),
-                entry.handle,
-            )
-            .await;
+            let _ = tokio::time::timeout(Duration::from_secs(5), entry.handle).await;
         }
         socket_set.remove(h);
     }

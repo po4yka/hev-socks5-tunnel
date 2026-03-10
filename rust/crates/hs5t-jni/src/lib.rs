@@ -35,7 +35,9 @@ static STATS: Mutex<Option<Arc<Stats>>> = Mutex::new(None);
 fn get_runtime() -> Option<&'static Runtime> {
     RUNTIME
         .get_or_try_init(|| {
-            tokio::runtime::Builder::new_multi_thread().enable_all().build()
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
         })
         .ok()
 }
@@ -82,9 +84,7 @@ pub extern "system" fn Java_hev_htproxy_TProxyService_TProxyGetStats(
     _obj: JObject,
 ) -> jlongArray {
     // Fetch the snapshot inside catch_unwind to guard against unexpected panics.
-    let snapshot = std::panic::catch_unwind(get_stats_snapshot)
-        .ok()
-        .flatten();
+    let snapshot = std::panic::catch_unwind(get_stats_snapshot).ok().flatten();
 
     let (tx_pkt, rx_pkt, tx_bytes, rx_bytes) = match snapshot {
         Some(v) => v,
@@ -93,7 +93,12 @@ pub extern "system" fn Java_hev_htproxy_TProxyService_TProxyGetStats(
 
     match env.new_long_array(4) {
         Ok(arr) => {
-            let values: [i64; 4] = [tx_pkt as i64, rx_pkt as i64, tx_bytes as i64, rx_bytes as i64];
+            let values: [i64; 4] = [
+                tx_pkt as i64,
+                rx_pkt as i64,
+                tx_bytes as i64,
+                rx_bytes as i64,
+            ];
             // `arr` is a valid JLongArray of length 4; `values` has 4 elements.
             if env.set_long_array_region(&arr, 0, &values).is_ok() {
                 arr.into_raw()

@@ -110,7 +110,10 @@ mod tests {
 
         assert_eq!(fwd, SIZE as u64, "forward byte count must equal 1 MiB");
         assert_eq!(bwd, 0, "no backward bytes expected");
-        assert_eq!(received, payload, "forward data must arrive at proxy intact");
+        assert_eq!(
+            received, payload,
+            "forward data must arrive at proxy intact"
+        );
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -142,7 +145,10 @@ mod tests {
 
         assert_eq!(fwd, 0, "no forward bytes expected");
         assert_eq!(bwd, SIZE as u64, "backward byte count must equal 1 MiB");
-        assert_eq!(received, payload, "backward data must arrive at local intact");
+        assert_eq!(
+            received, payload,
+            "backward data must arrive at local intact"
+        );
     }
 
     // ─────────────────────────────────────────────────────────────

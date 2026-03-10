@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use hs5t_config::Config;
 
-use crate::{ActiveSessions, Stats, TunDevice, io_loop_task};
+use crate::{io_loop_task, ActiveSessions, Stats, TunDevice};
 
 /// Start the tunnel with a parsed config and a raw TUN file descriptor.
 ///
@@ -82,6 +82,8 @@ pub async fn run_tunnel(
     let socket_set = SocketSet::new(vec![]);
     let sessions = ActiveSessions::new(config.misc.max_session_count as usize);
 
-    io_loop_task(&tun_async, device, iface, socket_set, sessions, config, cancel, stats, None)
-        .await
+    io_loop_task(
+        &tun_async, device, iface, socket_set, sessions, config, cancel, stats, None,
+    )
+    .await
 }

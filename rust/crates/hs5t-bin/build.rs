@@ -9,7 +9,9 @@ fn main() {
         .ok()
         .and_then(|o| {
             if o.status.success() {
-                String::from_utf8(o.stdout).ok().map(|s| s.trim().to_owned())
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_owned())
             } else {
                 None
             }

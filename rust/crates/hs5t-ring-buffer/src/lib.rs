@@ -292,7 +292,10 @@ mod tests {
 
         let (a, b) = buf.reading_bufs();
         assert!(a.len() > 0, "main reading slice must be non-empty");
-        assert!(b.len() > 0, "wrap reading slice must be non-empty (wrap-around case)");
+        assert!(
+            b.len() > 0,
+            "wrap reading slice must be non-empty (wrap-around case)"
+        );
         assert_eq!(a.len() + b.len(), buf.rda_size());
 
         // Verify content: 2 bytes of 0xAA (the unconsumed part) then 4 bytes of 0xBB
@@ -321,8 +324,15 @@ mod tests {
 
         let (a, b) = buf.writing_bufs();
         assert!(a.len() > 0, "main writing slice must be non-empty");
-        assert!(b.len() > 0, "wrap writing slice must be non-empty (wrap-around case)");
-        assert_eq!(a.len() + b.len(), 6, "total writable space must equal max_size - use_size");
+        assert!(
+            b.len() > 0,
+            "wrap writing slice must be non-empty (wrap-around case)"
+        );
+        assert_eq!(
+            a.len() + b.len(),
+            6,
+            "total writable space must equal max_size - use_size"
+        );
     }
 
     // ---- Test 6: read_finish / read_release invariants ---------------------
@@ -338,11 +348,19 @@ mod tests {
         // read_finish advances rp and decrements rda_size but NOT use_size
         buf.read_finish(5);
         assert_eq!(buf.use_size(), 11, "read_finish must not change use_size");
-        assert_eq!(buf.rda_size(), 6, "read_finish must decrement rda_size by 5");
+        assert_eq!(
+            buf.rda_size(),
+            6,
+            "read_finish must decrement rda_size by 5"
+        );
 
         // read_release decrements use_size
         buf.read_release(5);
-        assert_eq!(buf.use_size(), 6, "read_release must decrement use_size by 5");
+        assert_eq!(
+            buf.use_size(),
+            6,
+            "read_release must decrement use_size by 5"
+        );
         assert_eq!(buf.rda_size(), 6, "read_release must not change rda_size");
     }
 
@@ -360,7 +378,11 @@ mod tests {
 
         // After reset, full capacity must be available as a single contiguous region
         let (a, b) = buf.writing_bufs();
-        assert_eq!(a.len(), 8, "after pointer reset, all 8 bytes must be contiguous");
+        assert_eq!(
+            a.len(),
+            8,
+            "after pointer reset, all 8 bytes must be contiguous"
+        );
         assert_eq!(b.len(), 0);
     }
 
@@ -373,7 +395,11 @@ mod tests {
         buf.read_finish(4);
         buf.read_release(4);
 
-        assert_eq!(buf.use_size(), 2, "use_size must be 2 after partial release");
+        assert_eq!(
+            buf.use_size(),
+            2,
+            "use_size must be 2 after partial release"
+        );
         // rp should be 4 (not reset to 0) because use_size != 0
         // Verify: writing_bufs reflects the wrap-around space
         let (a, b) = buf.writing_bufs();

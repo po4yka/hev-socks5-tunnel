@@ -1,5 +1,5 @@
-use std::io;
 use smoltcp::iface::SocketHandle;
+use std::io;
 use tokio::io::DuplexStream;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -143,17 +143,33 @@ mod tests {
         sessions.insert(h3, e3);
 
         assert_eq!(sessions.len(), 3);
-        assert!(!cancel1.is_cancelled(), "cancel1 must not be cancelled before eviction");
+        assert!(
+            !cancel1.is_cancelled(),
+            "cancel1 must not be cancelled before eviction"
+        );
 
         // 4th insert evicts h1 (oldest).
         sessions.insert(h4, e4);
 
-        assert_eq!(sessions.len(), 3, "session count must remain at max=3 after eviction");
-        assert!(cancel1.is_cancelled(), "evicted session's cancel token must be cancelled");
-        assert!(!sessions.contains(h1), "h1 must not be present after eviction");
+        assert_eq!(
+            sessions.len(),
+            3,
+            "session count must remain at max=3 after eviction"
+        );
+        assert!(
+            cancel1.is_cancelled(),
+            "evicted session's cancel token must be cancelled"
+        );
+        assert!(
+            !sessions.contains(h1),
+            "h1 must not be present after eviction"
+        );
         assert!(sessions.contains(h2), "h2 must still be present");
         assert!(sessions.contains(h3), "h3 must still be present");
-        assert!(sessions.contains(h4), "h4 must be present as the new session");
+        assert!(
+            sessions.contains(h4),
+            "h4 must be present as the new session"
+        );
     }
 
     /// U-05: ActiveSessions::insert with max=0 — no eviction; 100 inserts all present.
@@ -168,6 +184,10 @@ mod tests {
             sessions.insert(h, entry);
         }
 
-        assert_eq!(sessions.len(), 100, "unlimited sessions must hold 100 entries");
+        assert_eq!(
+            sessions.len(),
+            100,
+            "unlimited sessions must hold 100 entries"
+        );
     }
 }

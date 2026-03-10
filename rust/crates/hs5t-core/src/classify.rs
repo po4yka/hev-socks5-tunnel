@@ -9,10 +9,7 @@ pub enum IpClass {
     /// TCP or any non-UDP protocol — push to `device.rx_queue` for smoltcp.
     TcpOrOther,
     /// UDP with dst matching the mapdns network:port — route to DnsCache.
-    UdpDns {
-        src: SocketAddr,
-        payload: Vec<u8>,
-    },
+    UdpDns { src: SocketAddr, payload: Vec<u8> },
     /// UDP not destined for mapdns — spawn a UdpSession.
     Udp {
         src: SocketAddr,
@@ -97,7 +94,13 @@ mod tests {
     const MAPDNS_MASK: u32 = 0xFFFE_0000; // /15
     const MAPDNS_PORT: u16 = 53;
 
-    fn ipv4_udp(src_ip: [u8; 4], dst_ip: [u8; 4], src_port: u16, dst_port: u16, payload: &[u8]) -> Vec<u8> {
+    fn ipv4_udp(
+        src_ip: [u8; 4],
+        dst_ip: [u8; 4],
+        src_port: u16,
+        dst_port: u16,
+        payload: &[u8],
+    ) -> Vec<u8> {
         let udp_len = 8 + payload.len();
         let total_len = 20 + udp_len;
         let mut pkt = vec![0u8; total_len];
@@ -105,8 +108,8 @@ mod tests {
         pkt[0] = 0x45;
         pkt[2] = (total_len >> 8) as u8;
         pkt[3] = total_len as u8;
-        pkt[8] = 64;  // TTL
-        pkt[9] = 17;  // UDP
+        pkt[8] = 64; // TTL
+        pkt[9] = 17; // UDP
         pkt[12..16].copy_from_slice(&src_ip);
         pkt[16..20].copy_from_slice(&dst_ip);
         // UDP header at offset 20
@@ -120,15 +123,18 @@ mod tests {
     fn ipv4_tcp(src_ip: [u8; 4], dst_ip: [u8; 4], src_port: u16, dst_port: u16) -> Vec<u8> {
         let mut pkt = vec![0u8; 40];
         pkt[0] = 0x45;
-        pkt[2] = 0; pkt[3] = 40;
-        pkt[8] = 64; pkt[9] = 6; // TCP
+        pkt[2] = 0;
+        pkt[3] = 40;
+        pkt[8] = 64;
+        pkt[9] = 6; // TCP
         pkt[12..16].copy_from_slice(&src_ip);
         pkt[16..20].copy_from_slice(&dst_ip);
         pkt[20..22].copy_from_slice(&src_port.to_be_bytes());
         pkt[22..24].copy_from_slice(&dst_port.to_be_bytes());
         pkt[32] = 0x50; // data offset
         pkt[33] = 0x02; // SYN
-        pkt[34] = 0xff; pkt[35] = 0xff; // window
+        pkt[34] = 0xff;
+        pkt[35] = 0xff; // window
         pkt
     }
 

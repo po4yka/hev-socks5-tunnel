@@ -349,7 +349,10 @@ misc:
     #[test]
     fn test_defaults_when_optional_sections_absent() {
         let cfg = Config::from_str(MINIMAL_VALID).expect("minimal YAML should parse");
-        assert!(cfg.mapdns.is_none(), "mapdns should be None when not in YAML");
+        assert!(
+            cfg.mapdns.is_none(),
+            "mapdns should be None when not in YAML"
+        );
         assert_eq!(cfg.misc.task_stack_size, 86016);
         assert_eq!(cfg.misc.tcp_buffer_size, 65536);
         assert_eq!(cfg.misc.udp_recv_buffer_size, 524288);

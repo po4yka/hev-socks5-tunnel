@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
 use smoltcp::phy::{ChecksumCapabilities, Device, DeviceCapabilities, Medium, RxToken, TxToken};
 use smoltcp::time::Instant;
+use std::collections::VecDeque;
 
 /// A smoltcp `Device` implementation backed by two in-memory packet queues.
 ///
@@ -60,8 +60,14 @@ impl<'a> TxToken for OwnedTxToken<'a> {
 // ── smoltcp Device impl ───────────────────────────────────────────────────────
 
 impl Device for TunDevice {
-    type RxToken<'a> = OwnedRxToken where Self: 'a;
-    type TxToken<'a> = OwnedTxToken<'a> where Self: 'a;
+    type RxToken<'a>
+        = OwnedRxToken
+    where
+        Self: 'a;
+    type TxToken<'a>
+        = OwnedTxToken<'a>
+    where
+        Self: 'a;
 
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
         let pkt = self.rx_queue.pop_front()?;
@@ -91,7 +97,7 @@ impl Device for TunDevice {
 /// reject it due to a bad checksum.
 pub fn build_tcp_syn(src_ip: [u8; 4], dst_ip: [u8; 4], src_port: u16, dst_port: u16) -> Vec<u8> {
     let mut pkt = vec![0u8; 40]; // 20-byte IPv4 header + 20-byte TCP header
-    // IPv4 header
+                                 // IPv4 header
     pkt[0] = 0x45; // version=4, IHL=5
     pkt[2] = 0;
     pkt[3] = 40; // total length = 40
@@ -101,7 +107,7 @@ pub fn build_tcp_syn(src_ip: [u8; 4], dst_ip: [u8; 4], src_port: u16, dst_port: 
     pkt[7] = 0x00; // DF flag
     pkt[8] = 64; // TTL
     pkt[9] = 6; // Protocol: TCP
-    // Checksum: 0 (ignored by smoltcp when caps.checksum = ignored)
+                // Checksum: 0 (ignored by smoltcp when caps.checksum = ignored)
     pkt[12..16].copy_from_slice(&src_ip);
     pkt[16..20].copy_from_slice(&dst_ip);
     // TCP header at offset 20
@@ -151,12 +157,7 @@ pub fn build_tcp_ack(
 pub fn tcp_seq_ack(pkt: &[u8]) -> (u32, u32) {
     let ihl = ((pkt[0] & 0x0f) as usize) * 4;
     let seq = u32::from_be_bytes([pkt[ihl + 4], pkt[ihl + 5], pkt[ihl + 6], pkt[ihl + 7]]);
-    let ack = u32::from_be_bytes([
-        pkt[ihl + 8],
-        pkt[ihl + 9],
-        pkt[ihl + 10],
-        pkt[ihl + 11],
-    ]);
+    let ack = u32::from_be_bytes([pkt[ihl + 8], pkt[ihl + 9], pkt[ihl + 10], pkt[ihl + 11]]);
     (seq, ack)
 }
 
@@ -165,7 +166,7 @@ mod tests {
     use super::*;
     use smoltcp::iface::{Config as IfaceConfig, Interface, SocketSet};
     use smoltcp::socket::tcp::{self, Socket as TcpSocket};
-    use smoltcp::wire::{HardwareAddress, IpCidr, IpAddress};
+    use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr};
 
     fn make_interface(device: &mut TunDevice) -> Interface {
         let config = IfaceConfig::new(HardwareAddress::Ip);
@@ -238,7 +239,10 @@ mod tests {
         iface.poll(Instant::now(), &mut device, &mut socket_set);
 
         // Step 2: SYN-ACK from smoltcp
-        let syn_ack = device.tx_queue.pop_front().expect("smoltcp must send SYN-ACK");
+        let syn_ack = device
+            .tx_queue
+            .pop_front()
+            .expect("smoltcp must send SYN-ACK");
         let (server_seq, _client_ack) = tcp_seq_ack(&syn_ack);
 
         // Step 3: ACK from client (acks server_seq + 1)

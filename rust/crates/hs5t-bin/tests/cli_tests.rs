@@ -118,11 +118,8 @@ fn i03_nonexistent_config_exits_1_with_stderr() {
 fn i04_sigint_causes_clean_shutdown() {
     // Write a minimal valid config to a temp file.
     let tmp = env::temp_dir().join("hs5t_test_sigint_config.yml");
-    fs::write(
-        &tmp,
-        b"socks5:\n  port: 19876\n  address: 127.0.0.1\n",
-    )
-    .expect("failed to write temp config");
+    fs::write(&tmp, b"socks5:\n  port: 19876\n  address: 127.0.0.1\n")
+        .expect("failed to write temp config");
 
     let mut child = hs5t()
         .arg(tmp.to_str().expect("temp path must be valid UTF-8"))
@@ -136,10 +133,7 @@ fn i04_sigint_causes_clean_shutdown() {
 
     // The binary must still be running — it must not exit immediately on startup.
     assert!(
-        child
-            .try_wait()
-            .expect("try_wait failed")
-            .is_none(),
+        child.try_wait().expect("try_wait failed").is_none(),
         "hs5t must still be running 200 ms after startup (must not exit immediately)"
     );
 

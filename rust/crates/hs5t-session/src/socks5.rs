@@ -252,7 +252,10 @@ mod tests {
             password: "wrong".to_string(),
         };
         let result = handshake(&mut mock, &auth).await;
-        assert!(result.is_err(), "expected error when server rejects credentials");
+        assert!(
+            result.is_err(),
+            "expected error when server rejects credentials"
+        );
     }
 
     // -------------------------------------------------------------------------

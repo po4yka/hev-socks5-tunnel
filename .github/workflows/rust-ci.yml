@@ -64,6 +64,46 @@ jobs:
         working-directory: rust
         run: cargo test --workspace
 
+  android-build:
+    name: Android JNI Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Setup NDK r27c
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+          link-to-sdk: false
+
+      - name: Configure cargo linker for Android
+        env:
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          mkdir -p rust/.cargo
+          NDK_BIN="${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          printf '[target.aarch64-linux-android]\nlinker = "%s/aarch64-linux-android24-clang"\n' \
+            "${NDK_BIN}" >> rust/.cargo/config.toml
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-android-${{ hashFiles('rust/Cargo.lock') }}
+
+      - name: cargo build android
+        working-directory: rust
+        run: cargo build --target aarch64-linux-android -p hs5t-jni
+
   c-tests:
     name: C Unit Tests
     runs-on: ubuntu-latest

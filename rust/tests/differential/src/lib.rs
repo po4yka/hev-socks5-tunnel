@@ -1,11 +1,10 @@
 // Differential test harness: C (hev-ring-buffer.c) vs Rust (hs5t-ring-buffer),
 // and C (dns_shim.c) vs Rust (hs5t-dns-cache).
 
-pub mod dns_shim_ffi;
-mod dns_shim_smoke;
 mod dns_diff;
 mod dns_fuzz;
-
+pub mod dns_shim_ffi;
+mod dns_shim_smoke;
 
 //
 // Generates random sequences of write / read operations and asserts that both
@@ -28,16 +27,8 @@ mod ring_buffer_diff {
     extern "C" {
         fn rb_new(capacity: usize) -> *mut CHevRingBuffer;
         fn rb_free(rb: *mut CHevRingBuffer);
-        fn rb_write_bytes(
-            rb: *mut CHevRingBuffer,
-            data: *const u8,
-            len: usize,
-        ) -> usize;
-        fn rb_read_available(
-            rb: *mut CHevRingBuffer,
-            out: *mut u8,
-            max_out: usize,
-        ) -> usize;
+        fn rb_write_bytes(rb: *mut CHevRingBuffer, data: *const u8, len: usize) -> usize;
+        fn rb_read_available(rb: *mut CHevRingBuffer, out: *mut u8, max_out: usize) -> usize;
         fn rb_get_max_size(rb: *mut CHevRingBuffer) -> usize;
         fn rb_get_use_size(rb: *mut CHevRingBuffer) -> usize;
         fn rb_get_rda_size(rb: *mut CHevRingBuffer) -> usize;
@@ -140,9 +131,11 @@ mod ring_buffer_diff {
                     let c_written = c.write_bytes(&data[..to_write]);
 
                     prop_assert_eq!(
-                        rust_written, c_written,
+                        rust_written,
+                        c_written,
                         "write: Rust wrote {} bytes, C wrote {} bytes",
-                        rust_written, c_written
+                        rust_written,
+                        c_written
                     );
                     prop_assert_eq!(
                         rust.use_size(),
@@ -171,9 +164,12 @@ mod ring_buffer_diff {
                     );
                     for (i, (&rb, &cb)) in rust_data.iter().zip(c_data.iter()).enumerate() {
                         prop_assert_eq!(
-                            rb, cb,
+                            rb,
+                            cb,
                             "byte {} mismatch after read: Rust=0x{:02X} C=0x{:02X}",
-                            i, rb, cb
+                            i,
+                            rb,
+                            cb
                         );
                     }
                     prop_assert_eq!(

@@ -1,6 +1,6 @@
 // FFI bindings for dns_shim.c — standalone C DNS cache for differential tests.
 
-use std::os::raw::{c_int, c_void, c_char};
+use std::os::raw::{c_char, c_int, c_void};
 
 #[repr(C)]
 pub struct CDnsShim {

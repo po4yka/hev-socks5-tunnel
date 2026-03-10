@@ -17,7 +17,7 @@ use tokio_util::sync::CancellationToken;
 
 use hs5t_config::Config;
 
-use crate::{Stats, tunnel_api::run_tunnel};
+use crate::{tunnel_api::run_tunnel, Stats};
 
 // ── Global state ──────────────────────────────────────────────────────────────
 
@@ -34,7 +34,9 @@ static C_STATS: Mutex<Option<Arc<Stats>>> = Mutex::new(None);
 fn get_runtime() -> Option<&'static Runtime> {
     C_RUNTIME
         .get_or_try_init(|| {
-            tokio::runtime::Builder::new_multi_thread().enable_all().build()
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
         })
         .ok()
 }

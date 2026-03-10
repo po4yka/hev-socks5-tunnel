@@ -56,8 +56,7 @@ mod dns_diff {
 
     /// Valid FQDN: 1-3 dot-separated labels, each 1-8 chars.
     fn arb_name_str() -> impl Strategy<Value = String> {
-        prop::collection::vec(arb_label_str(), 1usize..=3)
-            .prop_map(|labels| labels.join("."))
+        prop::collection::vec(arb_label_str(), 1usize..=3).prop_map(|labels| labels.join("."))
     }
 
     /// A single DNS query descriptor.
@@ -69,8 +68,11 @@ mod dns_diff {
     }
 
     fn arb_query() -> impl Strategy<Value = QueryDesc> {
-        (any::<u16>(), any::<bool>(), arb_name_str())
-            .prop_map(|(id, rd, name)| QueryDesc { id, rd, name })
+        (any::<u16>(), any::<bool>(), arb_name_str()).prop_map(|(id, rd, name)| QueryDesc {
+            id,
+            rd,
+            name,
+        })
     }
 
     // -----------------------------------------------------------------------
@@ -98,8 +100,9 @@ mod dns_diff {
             prop_assert!(c_rlen > 0, "C shim failed for query {:?}", q);
             let c_rlen = c_rlen as usize;
 
-            let r_rlen = r_result
-                .map_err(|e| TestCaseError::fail(format!("Rust handle failed: {e:?} query={q:?}")))?;
+            let r_rlen = r_result.map_err(|e| {
+                TestCaseError::fail(format!("Rust handle failed: {e:?} query={q:?}"))
+            })?;
 
             prop_assert_eq!(
                 c_rlen,

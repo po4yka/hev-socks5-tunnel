@@ -293,12 +293,12 @@ mod tests {
     /// Build a minimal DNS A query packet for `name` with RD=1.
     fn make_a_query(name: &str) -> Vec<u8> {
         let mut pkt = Vec::with_capacity(64);
-        pkt.extend_from_slice(&1u16.to_be_bytes());      // ID = 1
+        pkt.extend_from_slice(&1u16.to_be_bytes()); // ID = 1
         pkt.extend_from_slice(&0x0100u16.to_be_bytes()); // flags: RD=1
-        pkt.extend_from_slice(&1u16.to_be_bytes());      // QDCOUNT = 1
-        pkt.extend_from_slice(&0u16.to_be_bytes());      // ANCOUNT = 0
-        pkt.extend_from_slice(&0u16.to_be_bytes());      // NSCOUNT = 0
-        pkt.extend_from_slice(&0u16.to_be_bytes());      // ARCOUNT = 0
+        pkt.extend_from_slice(&1u16.to_be_bytes()); // QDCOUNT = 1
+        pkt.extend_from_slice(&0u16.to_be_bytes()); // ANCOUNT = 0
+        pkt.extend_from_slice(&0u16.to_be_bytes()); // NSCOUNT = 0
+        pkt.extend_from_slice(&0u16.to_be_bytes()); // ARCOUNT = 0
         pkt.extend(encode_name(name));
         pkt.extend_from_slice(&1u16.to_be_bytes()); // QTYPE = A
         pkt.extend_from_slice(&1u16.to_be_bytes()); // QCLASS = IN
@@ -351,11 +351,19 @@ mod tests {
 
         // Touch "a.com" → moves to MRU tail; LRU order = [b, c, a].
         let ip_a_again = cache.find("a.com");
-        assert_eq!(ip_a_again, Some(NET | 0), "a.com must keep its IP on re-find");
+        assert_eq!(
+            ip_a_again,
+            Some(NET | 0),
+            "a.com must keep its IP on re-find"
+        );
 
         // Insert "d.com" → must evict "b.com" (new LRU front), reuse slot 1.
         let ip_d = cache.find("d.com");
-        assert_eq!(ip_d, Some(NET | 1), "d.com must reuse slot 1 (b.com's slot)");
+        assert_eq!(
+            ip_d,
+            Some(NET | 1),
+            "d.com must reuse slot 1 (b.com's slot)"
+        );
 
         // "a.com" and "c.com" must still be reachable.
         assert_eq!(cache.find("a.com"), Some(NET | 0));
@@ -371,7 +379,9 @@ mod tests {
         let mut req = make_a_query("example.com");
         let mut res = vec![0u8; 512];
 
-        let rlen = cache.handle(&mut req, &mut res).expect("handle must succeed");
+        let rlen = cache
+            .handle(&mut req, &mut res)
+            .expect("handle must succeed");
 
         // Response must include at least one answer record (16 bytes) beyond the request.
         assert!(
@@ -392,7 +402,11 @@ mod tests {
 
         // Name pointer: 0xc0 <question_start_offset>
         assert_eq!(res[ans_off], 0xc0, "name compression pointer high byte");
-        assert_eq!(res[ans_off + 1], 12, "name pointer must reference offset 12");
+        assert_eq!(
+            res[ans_off + 1],
+            12,
+            "name pointer must reference offset 12"
+        );
         // TYPE = A (1)
         assert_eq!(
             u16::from_be_bytes([res[ans_off + 2], res[ans_off + 3]]),
@@ -432,7 +446,12 @@ mod tests {
         assert_eq!(ip, NET | 0, "RDATA must be NET | 0");
 
         // Total response length
-        assert_eq!(rlen, ans_off + 16, "response length must be {}", ans_off + 16);
+        assert_eq!(
+            rlen,
+            ans_off + 16,
+            "response length must be {}",
+            ans_off + 16
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -522,13 +541,19 @@ mod tests {
         let mut req = make_a_query("flags.test");
         let mut res = vec![0u8; 512];
 
-        cache.handle(&mut req, &mut res).expect("handle must succeed");
+        cache
+            .handle(&mut req, &mut res)
+            .expect("handle must succeed");
 
         let flags = u16::from_be_bytes([res[2], res[3]]);
         // QR=1 (bit 15): response marker
         assert_eq!(flags & 0x8000, 0x8000, "QR bit must be set in response");
         // RD=1 (bit 8): preserved from query
-        assert_eq!(flags & 0x0100, 0x0100, "RD bit must be preserved from query");
+        assert_eq!(
+            flags & 0x0100,
+            0x0100,
+            "RD bit must be preserved from query"
+        );
         // RA=1 (bit 7): C code sets RA = (query_RD >> 1); since RD=1, RA=1
         assert_eq!(
             flags & 0x0080,
@@ -557,21 +582,19 @@ mod proptest_tests {
 
     /// Generate a valid FQDN: 1-3 labels joined with '.'.
     fn arb_name() -> impl Strategy<Value = String> {
-        prop::collection::vec(arb_label(), 1usize..=3)
-            .prop_map(|labels| labels.join("."))
+        prop::collection::vec(arb_label(), 1usize..=3).prop_map(|labels| labels.join("."))
     }
 
     /// Generate a sequence of 1-30 names (duplicates allowed for LRU-touch
     /// semantics; distinct pool is bounded so cache saturation is exercised).
     fn arb_names(max_ops: usize, pool: usize) -> impl Strategy<Value = Vec<String>> {
-        prop::collection::vec(arb_label(), 1usize..=pool)
-            .prop_flat_map(move |pool_names| {
-                let pool_names = std::sync::Arc::new(pool_names);
-                prop::collection::vec(
-                    (0usize..pool_names.len()).prop_map(move |i| pool_names[i].clone()),
-                    1..=max_ops,
-                )
-            })
+        prop::collection::vec(arb_label(), 1usize..=pool).prop_flat_map(move |pool_names| {
+            let pool_names = std::sync::Arc::new(pool_names);
+            prop::collection::vec(
+                (0usize..pool_names.len()).prop_map(move |i| pool_names[i].clone()),
+                1..=max_ops,
+            )
+        })
     }
 
     // -----------------------------------------------------------------------
