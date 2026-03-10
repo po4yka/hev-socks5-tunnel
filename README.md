@@ -4,16 +4,31 @@
 
 A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 
-> **Note:** This project has been fully migrated to Rust. The original C
-> implementation has been removed. The `rust/` workspace is the sole
-> source of truth. The C Makefile is no longer functional.
+> **Status:** The active implementation lives in the `rust/` workspace.
+> The repository still contains legacy C-era files and helper scripts used
+> during migration, but the top-level `make` target now builds the Rust CLI.
 
 ## Features
 
 * IPv4/IPv6. (dual stack)
 * Redirect TCP connections.
 * Redirect UDP packets. (Fullcone NAT, UDP-in-UDP and UDP-in-TCP [^1])
-* Linux/Android/FreeBSD/macOS/iOS/Windows.
+* Linux native CLI support.
+* Android / embedded integration via pre-opened TUN file descriptor.
+* Rust C FFI and Android JNI entry points for host integrations.
+
+## Current Platform Status
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Linux | Supported | `hs5t` opens and configures the TUN device itself. |
+| Android | Supported via integration | Use the JNI crate or pass `HEV_SOCKS5_TUNNEL_FD`. |
+| Embedded / host-managed TUN | Supported | Pass a pre-opened TUN fd through `HEV_SOCKS5_TUNNEL_FD` or the Rust/C API. |
+| macOS | Not yet implemented in Rust | TUN backend is still a stub. |
+| iOS | Not yet implemented in Rust | No Rust TUN backend yet. |
+| FreeBSD | Not yet implemented in Rust | TUN backend is still a stub. |
+| NetBSD | Not yet implemented in Rust | TUN backend is still a stub. |
+| Windows | Not yet implemented in Rust | WinTun backend is still a stub. |
 
 ## Benchmarks
 
@@ -44,44 +59,26 @@ cd hev-socks5-tunnel
 make
 ```
 
-### Android
+This builds the Rust CLI and copies it to `bin/hev-socks5-tunnel`.
 
-```bash
-mkdir hev-socks5-tunnel
-cd hev-socks5-tunnel
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel jni
-ndk-build
-```
-
-### iOS and macOS
+### Rust Workspace
 
 ```bash
 git clone --recursive https://github.com/heiher/hev-socks5-tunnel
 cd hev-socks5-tunnel
-# will generate HevSocks5Tunnel.xcframework
-./build-apple.sh
+cargo build --manifest-path rust/Cargo.toml -p hs5t-bin --release
 ```
 
-### Windows (MSYS2)
-```bash
-export MSYS=winsymlinks:native
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel
-cd hev-socks5-tunnel
-make
-```
+### Android Integration
 
-### Library
+The Rust workspace includes an Android JNI shim in `rust/crates/hs5t-jni`.
+That path expects the host Android app to provide an already-open TUN file
+descriptor to the runtime.
 
-```bash
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel
-cd hev-socks5-tunnel
+### Legacy Scripts
 
-# Static library
-make static
-
-# Shared library
-make shared
-```
+Top-level files such as `Android.mk` and `build-apple.sh` are legacy migration
+artifacts and do not describe the current Rust support matrix.
 
 ## How to Use
 
@@ -166,7 +163,6 @@ socks5:
 #### Linux
 
 ```bash
-# Set socks5.mark = 438
 bin/hev-socks5-tunnel conf/main.yml
 
 # Disable reverse path filter
@@ -184,30 +180,13 @@ sudo ip -6 route add default dev tun0 table 20
 sudo ip -6 rule add lookup 20 pref 20
 ```
 
-#### FreeBSD/macOS
+#### Pre-opened TUN FD
 
-```zsh
-# Bypass upstream socks5 server
-# 10.0.0.1: socks5 server
-# 10.0.2.2: default gateway
-sudo route add -net 10.0.0.1/32 10.0.2.2
+When a host process already owns the TUN device, pass its file descriptor to
+the Rust runtime:
 
-# Route others
-sudo route change -inet default -interface tun0
-sudo route change -inet6 default -interface tun0
-```
-
-#### Windows
-
-```zsh
-# Bypass upstream socks5 server
-# 10.0.0.1: socks5 server
-# 10.0.2.2: default gateway
-route add 10.0.0.1/32 10.0.2.2
-
-# Route others
-route change 0.0.0.0/0 0.0.0.0 if tun-index
-route change ::/0 :: if tun-index
+```bash
+HEV_SOCKS5_TUNNEL_FD=3 bin/hev-socks5-tunnel conf/main.yml
 ```
 
 #### OpenWrt 24.10+
@@ -226,9 +205,9 @@ opkg install hev-socks5-tunnel
 
 #### Low memory usage
 
-On low-memory systems like iOS, reducing the size of the TCP buffer and
-task stack, as well as limiting the maximum session count, can help prevent
-out-of-memory issues.
+On low-memory systems, reducing the size of the TCP buffer and task stack, as
+well as limiting the maximum session count, can help prevent out-of-memory
+issues.
 
 ```yaml
 misc:
